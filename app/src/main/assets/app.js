@@ -5,15 +5,19 @@
   const baseNames = ['Subuh', 'Syuruq', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
 
   const defaults = {
-    displayMode: 'background', // 'background' | 'info' | 'youtube' | 'auto'
+    displayMode: 'background',
     infoSlideDuration: 12,
     mosque: 'Masjid Nurul Himmah',
-    location: 'Jl. Raya Surabaya, Jawa Timur. Telp. 031-8064544',
+    location: 'Surabaya, Jawa Timur',
+    scheduleMode: 'auto', // 'auto' (koordinat) | 'manual'
+    latitude: -7.2575,
+    longitude: 112.7521,
+    timezone: 7,
     hijriOffset: 0,
     fridayMode: 'auto',
     times: ['04:05', '05:23', '11:44', '15:07', '17:57', '19:11'],
     iq: ['15', '0', '10', '10', '5', '10'],
-    offsets: ['0', '0', '0', '0', '0', '0'],
+    offsets: ['2', '0', '2', '2', '2', '2'], // ihtiyat +2 menit
     kasAwal: 12500000,
     kasMasuk: 2350000,
     kasKeluar: 850000,
@@ -28,7 +32,8 @@
     youtube: '',
     backgroundUrl: '',
     slideDuration: 15,
-    photoIds: []
+    photoIds: [],
+    photoDataUrls: [] // Cadangan foto terkompresi agar tetap jalan di WebView Android
   };
 
   const getSettings = () => {
@@ -54,7 +59,76 @@
   const el = (id) => document.getElementById(id);
   const rupiah = (n) => 'Rp ' + (Number(n) || 0).toLocaleString('id-ID');
 
-  // --- INDEXED DB UNTUK FOTO LOKAL ---
+  // --- PERHITUNGAN HISAB WAKTU SALAT OTOMATIS (KEMENAG RI: SUBUH 20°, ISYA 18°) ---
+  function calculatePrayerTimes(dateObj, lat, lng, tz) {
+    const D2R = Math.PI / 180;
+    const R2D = 180 / Math.PI;
+    const fixAngle = (a) => a - 360 * Math.floor(a / 360);
+    const fixHour = (a) => a - 24 * Math.floor(a / 24);
+
+    // Julian Date
+    let year = dateObj.getFullYear();
+    let month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+    if (month <= 2) {
+      year -= 1;
+      month += 12;
+    }
+    const A = Math.floor(year / 100);
+    const B = 2 - A + Math.floor(A / 4);
+    const jd = Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + B - 1524.5;
+
+    const sunPosition = (jdVal) => {
+      const D = jdVal - 2451545.0;
+      const g = fixAngle(357.529 + 0.98560028 * D);
+      const q = fixAngle(280.459 + 0.98564736 * D);
+      const L = fixAngle(q + 1.915 * Math.sin(g * D2R) + 0.020 * Math.sin(2 * g * D2R));
+      const e = 23.439 - 0.00000036 * D;
+      const RA = fixAngle(Math.atan2(Math.cos(e * D2R) * Math.sin(L * D2R), Math.cos(L * D2R)) * R2D) / 15;
+      const eqt = q / 15 - RA;
+      const decl = Math.asin(Math.sin(e * D2R) * Math.sin(L * D2R)) * R2D;
+      return { decl, eqt };
+    };
+
+    const midDay = (time) => {
+      const eqt = sunPosition(jd + time).eqt;
+      return fixHour(12 - eqt);
+    };
+
+    const sunAngleTime = (angle, time, isCCW) => {
+      const decl = sunPosition(jd + time).decl;
+      const noon = midDay(time);
+      const num = -Math.sin(angle * D2R) - Math.sin(decl * D2R) * Math.sin(lat * D2R);
+      const den = Math.cos(decl * D2R) * Math.cos(lat * D2R);
+      const cosVal = Math.max(-1, Math.min(1, num / den));
+      const t = (1 / 15) * (Math.acos(cosVal) * R2D);
+      return noon + (isCCW ? -t : t);
+    };
+
+    const asrTime = (factor, time) => {
+      const decl = sunPosition(jd + time).decl;
+      const angle = -Math.atan(1 / (factor + Math.tan(Math.abs(lat - decl) * D2R))) * R2D;
+      return sunAngleTime(angle, time, false);
+    };
+
+    const fajr = sunAngleTime(20, 5 / 24, true);
+    const sunrise = sunAngleTime(0.833, 6 / 24, true);
+    const dhuhr = midDay(12 / 24);
+    const asr = asrTime(1, 13 / 24);
+    const maghrib = sunAngleTime(0.833, 18 / 24, false);
+    const isha = sunAngleTime(18, 18 / 24, false);
+
+    const raw = [fajr, sunrise, dhuhr, asr, maghrib, isha];
+    return raw.map((t) => {
+      const local = fixHour(t + tz - lng / 15);
+      const totalMins = Math.round(local * 60);
+      const hh = Math.floor(totalMins / 60) % 24;
+      const mm = totalMins % 60;
+      return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    });
+  }
+
+  // --- PENYIMPANAN & KOMPRESI FOTO GALERI ---
   function dbOpen() {
     return new Promise((resolve, reject) => {
       const r = indexedDB.open(DB, 1);
@@ -64,17 +138,53 @@
     });
   }
 
-  async function photoSave(file) {
-    const db = await dbOpen();
-    const id = 'p' + Date.now() + Math.random().toString(16).slice(2);
-    await new Promise((res, rej) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put({ id, blob: file });
-      tx.oncomplete = res;
-      tx.onerror = () => rej(tx.error);
+  function compressImageToDataUrl(file, maxWidth = 1280, quality = 0.78) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxWidth / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = ev.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
-    db.close();
-    return id;
+  }
+
+  async function saveGalleryFiles(files) {
+    let savedCount = 0;
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) continue;
+      try {
+        const dataUrl = await compressImageToDataUrl(f);
+        // Simpan ke IndexedDB
+        const db = await dbOpen();
+        const id = 'p' + Date.now() + Math.random().toString(16).slice(2);
+        await new Promise((res, rej) => {
+          const tx = db.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).put({ id, dataUrl });
+          tx.oncomplete = res;
+          tx.onerror = () => rej(tx.error);
+        });
+        db.close();
+        cfg.photoIds.push(id);
+        savedCount++;
+      } catch (err) {
+        console.error('Gagal menyimpan gambar:', err);
+      }
+    }
+    localStorage.setItem(KEY, JSON.stringify(cfg));
+    await loadPhotos();
+    return savedCount;
   }
 
   async function photoGet(id) {
@@ -85,24 +195,30 @@
       r.onerror = () => rej(r.error);
     });
     db.close();
-    return item?.blob || null;
+    if (!item) return null;
+    if (item.dataUrl) return item.dataUrl;
+    if (item.blob) return URL.createObjectURL(item.blob);
+    return null;
   }
 
   async function clearAllPhotos() {
-    const db = await dbOpen();
-    await new Promise((res) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).clear();
-      tx.oncomplete = res;
-      tx.onerror = res;
-    });
-    db.close();
+    try {
+      const db = await dbOpen();
+      await new Promise((res) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).clear();
+        tx.oncomplete = res;
+        tx.onerror = res;
+      });
+      db.close();
+    } catch (e) {}
     cfg.photoIds = [];
+    cfg.photoDataUrls = [];
     localStorage.setItem(KEY, JSON.stringify(cfg));
     await loadPhotos();
   }
 
-  // --- RENDER JARUM & ANGKA JAM ANALOG ---
+  // --- JAM ANALOG ---
   function buildAnalogDial() {
     const ticksWrap = el('dialTicks');
     const numsWrap = el('dialNumbers');
@@ -118,7 +234,7 @@
     let numsHtml = '';
     for (let n = 1; n <= 12; n++) {
       const angle = (n * 30 - 90) * (Math.PI / 180);
-      const r = 36; // persen dari pusat
+      const r = 36;
       const x = 50 + r * Math.cos(angle);
       const y = 50 + r * Math.sin(angle);
       numsHtml += `<span class="dial-num" style="left:${x}%;top:${y}%">${n}</span>`;
@@ -141,7 +257,7 @@
     }
   }
 
-  // --- WAKTU SALAT ---
+  // --- WAKTU SALAT AKTIF ---
   function getPrayerLabels(now = new Date()) {
     const isFriday = now.getDay() === 5;
     return baseNames.map((name, idx) => {
@@ -164,12 +280,16 @@
     return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
   }
 
-  function effectiveTimes() {
-    return cfg.times.map((t, i) => adjust(t, cfg.offsets?.[i] || 0));
+  function effectiveTimes(now = new Date()) {
+    let base = cfg.times;
+    if (cfg.scheduleMode === 'auto' && !isNaN(Number(cfg.latitude)) && !isNaN(Number(cfg.longitude))) {
+      base = calculatePrayerTimes(now, Number(cfg.latitude), Number(cfg.longitude), Number(cfg.timezone || 7));
+    }
+    return base.map((t, i) => adjust(t, cfg.offsets?.[i] || 0));
   }
 
   function renderTimes(now = new Date()) {
-    const times = effectiveTimes();
+    const times = effectiveTimes(now);
     const labels = getPrayerLabels(now);
     if (el('times')) {
       el('times').innerHTML = labels
@@ -184,12 +304,11 @@
     }
   }
 
-  // --- SLIDE INFORMASI (KAS, JUMAT, PENGUMUMAN, LAPORAN) ---
+  // --- SLIDE INFORMASI ---
   function getInfoSlides() {
     const slides = [];
     const saldoAkhir = (Number(cfg.kasAwal) || 0) + (Number(cfg.kasMasuk) || 0) - (Number(cfg.kasKeluar) || 0);
 
-    // 1. Slide Laporan Kas Masjid
     slides.push({
       badge: 'LAPORAN KEUANGAN / KAS MASJID',
       html: `
@@ -203,7 +322,6 @@
       `
     });
 
-    // 2. Slide Petugas Salat Jumat
     slides.push({
       badge: 'PETUGAS SALAT JUMAT PEKAN INI',
       html: `
@@ -216,7 +334,6 @@
       `
     });
 
-    // 3. Slide Pengumuman
     if (cfg.announcement && cfg.announcement.trim()) {
       slides.push({
         badge: 'PENGUMUMAN MASJID',
@@ -224,7 +341,6 @@
       });
     }
 
-    // 4. Slide Laporan Kegiatan
     if (cfg.report && cfg.report.trim()) {
       slides.push({
         badge: 'LAPORAN & AGENDA KEGIATAN',
@@ -277,7 +393,10 @@
     }
   }
 
-  // --- KONTROL MODE LAYAR TENGAH ---
+  function isYoutubeLink(url) {
+    return /youtube\.com|youtu\.be/i.test(url || '');
+  }
+
   function applyStageMode(modeOverride) {
     const mode = modeOverride || cfg.displayMode || 'background';
     const infoStage = el('infoStage');
@@ -295,7 +414,6 @@
       infoStage.hidden = false;
       startInfoSlider();
     } else {
-      // mode 'background'
       infoStage.hidden = true;
       ytStage.hidden = true;
       ytFrame.src = '';
@@ -327,11 +445,10 @@
   }
 
   async function loadPhotos() {
-    for (const u of photoUrls) URL.revokeObjectURL(u);
     photoUrls = [];
     for (const id of cfg.photoIds || []) {
-      const blob = await photoGet(id);
-      if (blob) photoUrls.push(URL.createObjectURL(blob));
+      const src = await photoGet(id);
+      if (src) photoUrls.push(src);
     }
     startBgSlide();
   }
@@ -339,7 +456,9 @@
   function startBgSlide() {
     if (bgTimer) clearInterval(bgTimer);
     const sources = [...(photoUrls || [])];
-    if (cfg.backgroundUrl) sources.push(cfg.backgroundUrl);
+    if (cfg.backgroundUrl && !isYoutubeLink(cfg.backgroundUrl)) {
+      sources.push(cfg.backgroundUrl);
+    }
     if (!sources.length) {
       setBg('');
       return;
@@ -354,11 +473,10 @@
     }
   }
 
-  // --- DETAK JAM REAL-TIME & COUNTDOWN ---
+  // --- DETAK JAM REAL-TIME ---
   function tick() {
     const now = new Date();
 
-    // Update Jarum Jam Analog
     const sec = now.getSeconds();
     const min = now.getMinutes();
     const hr = now.getHours() % 12;
@@ -366,7 +484,6 @@
     if (el('minuteHand')) el('minuteHand').style.transform = `rotate(${min * 6 + sec * 0.1}deg)`;
     if (el('hourHand')) el('hourHand').style.transform = `rotate(${hr * 30 + min * 0.5}deg)`;
 
-    // Update Tanggal Masehi + Hijriah
     const masehi = now.toLocaleDateString('id-ID', {
       weekday: 'long',
       day: 'numeric',
@@ -378,8 +495,7 @@
       el('dateBar').textContent = hijri ? `${masehi} / ${hijri}` : masehi;
     }
 
-    // Hitung Salat Berikutnya
-    const times = effectiveTimes();
+    const times = effectiveTimes(now);
     const labels = getPrayerLabels(now);
     const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
     const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -388,7 +504,6 @@
     let delta = Infinity;
 
     for (let i = 0; i < times.length; i++) {
-      // Cek apakah baru saja masuk waktu salat untuk memicu Iqomah
       if (times[i] === currentHHMM && sec === 0 && lastTriggeredMinute !== currentHHMM) {
         lastTriggeredMinute = currentHHMM;
         const iqMins = Number(cfg.iq?.[i] || 0);
@@ -407,7 +522,6 @@
       }
     }
 
-    // Update Kapsul Countdown & Highlight Kartu Aktif
     if (target >= 0) {
       if (el('nextLabel')) el('nextLabel').textContent = labels[target];
       const totalSec = Math.floor(delta * 60);
@@ -418,12 +532,13 @@
 
       document.querySelectorAll('.prayer-card').forEach((card, idx) => {
         const nameEl = card.querySelector('.name');
+        const timeEl = card.querySelector('.time');
         if (nameEl) nameEl.textContent = labels[idx];
+        if (timeEl) timeEl.textContent = times[idx];
         card.classList.toggle('active', idx === target);
       });
     }
 
-    // Cek Overlay Iqomah
     const iqOverlay = el('iqomahOverlay');
     if (iqOverlay) {
       const remMs = iqomahEndTimestamp - Date.now();
@@ -440,7 +555,6 @@
     }
   }
 
-  // --- RENDER PENGATURAN KE LAYAR ---
   function renderSettings() {
     cfg = getSettings();
     if (el('mosque')) el('mosque').textContent = cfg.mosque;
@@ -448,6 +562,30 @@
     if (el('tickerText')) el('tickerText').textContent = cfg.message;
     renderTimes();
     setupDisplayMode();
+  }
+
+  function refreshAdminTimePreview() {
+    const isAuto = el('scheduleMode').value === 'auto';
+    const lat = Number(el('latitudeInput').value);
+    const lng = Number(el('longitudeInput').value);
+    const tz = Number(el('timezoneInput').value || 7);
+
+    const calculated = isAuto && !isNaN(lat) && !isNaN(lng)
+      ? calculatePrayerTimes(new Date(), lat, lng, tz)
+      : cfg.times;
+
+    baseNames.forEach((_, i) => {
+      const inp = el(`time${i}`);
+      if (!inp) return;
+      if (isAuto) {
+        inp.value = calculated[i] || '00:00';
+        inp.readOnly = true;
+        inp.style.background = '#eef3f8';
+      } else {
+        inp.readOnly = false;
+        inp.style.background = '#fbfdff';
+      }
+    });
   }
 
   // --- PANEL ADMIN ---
@@ -459,6 +597,10 @@
     el('infoSlideDuration').value = cfg.infoSlideDuration || 12;
     el('mosqueInput').value = cfg.mosque;
     el('location').value = cfg.location;
+    el('scheduleMode').value = cfg.scheduleMode || 'auto';
+    el('latitudeInput').value = cfg.latitude ?? -7.2575;
+    el('longitudeInput').value = cfg.longitude ?? 112.7521;
+    el('timezoneInput').value = cfg.timezone ?? 7;
     el('hijriOffset').value = cfg.hijriOffset || 0;
     el('fridayMode').value = cfg.fridayMode || 'auto';
     el('backgroundUrl').value = cfg.backgroundUrl;
@@ -494,6 +636,8 @@
     el('offFields').innerHTML = baseNames
       .map((n, i) => `<label>${n}<input type="number" min="-30" max="30" id="off${i}" value="${cfg.offsets[i] || 0}"></label>`)
       .join('');
+
+    refreshAdminTimePreview();
   }
 
   function closeAdminPanel() {
@@ -515,6 +659,60 @@
     el('openAdminBtn')?.addEventListener('click', openAdminPanel);
     el('backToScreenBtn')?.addEventListener('click', closeAdminPanel);
 
+    // Pemicu tombol Buka Galeri
+    el('pickPhotoBtn')?.addEventListener('click', () => {
+      const fileInp = el('backgroundFile');
+      if (fileInp) {
+        fileInp.value = '';
+        fileInp.click();
+      }
+    });
+
+    // Preset Kota
+    el('cityPreset')?.addEventListener('change', (e) => {
+      if (!e.target.value) return;
+      const [lat, lng, tz] = e.target.value.split(',');
+      el('latitudeInput').value = lat;
+      el('longitudeInput').value = lng;
+      el('timezoneInput').value = tz;
+      el('scheduleMode').value = 'auto';
+      const cityName = e.target.options[e.target.selectedIndex].text.split(' (')[0];
+      if (!el('location').value.trim()) el('location').value = cityName;
+      el('gpsStatus').textContent = `Wilayah diatur ke ${cityName} (${lat}, ${lng})`;
+      refreshAdminTimePreview();
+    });
+
+    el('scheduleMode')?.addEventListener('change', refreshAdminTimePreview);
+    el('latitudeInput')?.addEventListener('input', refreshAdminTimePreview);
+    el('longitudeInput')?.addEventListener('input', refreshAdminTimePreview);
+    el('timezoneInput')?.addEventListener('change', refreshAdminTimePreview);
+
+    // Deteksi GPS Otomatis
+    el('detectGpsBtn')?.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        el('gpsStatus').textContent = 'Browser/perangkat tidak mendukung GPS.';
+        return;
+      }
+      el('gpsStatus').textContent = 'Mencari koordinat GPS perangkat...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = Number(pos.coords.latitude.toFixed(5));
+          const lng = Number(pos.coords.longitude.toFixed(5));
+          const tz = Math.round(lng / 15);
+          el('latitudeInput').value = lat;
+          el('longitudeInput').value = lng;
+          if ([7, 8, 9].includes(tz)) el('timezoneInput').value = tz;
+          el('scheduleMode').value = 'auto';
+          el('gpsStatus').textContent = `Berhasil! Lat: ${lat}, Lng: ${lng}`;
+          refreshAdminTimePreview();
+        },
+        (err) => {
+          el('gpsStatus').textContent = `Gagal GPS (${err.message}). Silakan pilih kota atau isi koordinat manual.`;
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+
     el('clearPhotosBtn')?.addEventListener('click', async () => {
       await clearAllPhotos();
       el('imageStatus').textContent = 'Semua foto lokal telah dihapus.';
@@ -523,30 +721,40 @@
     el('backgroundFile')?.addEventListener('change', async (e) => {
       const files = [...(e.target.files || [])];
       if (!files.length) return;
-      el('imageStatus').textContent = 'Menyimpan foto...';
-      for (const f of files) {
-        if (!f.type.startsWith('image/')) continue;
-        const id = await photoSave(f);
-        cfg.photoIds.push(id);
-      }
-      localStorage.setItem(KEY, JSON.stringify(cfg));
-      await loadPhotos();
+      el('imageStatus').textContent = 'Memproses & menyimpan foto ke perangkat...';
+      await saveGalleryFiles(files);
       el('imageStatus').textContent = `${cfg.photoIds.length} foto lokal tersimpan.`;
     });
 
     el('form')?.addEventListener('submit', (e) => {
       e.preventDefault();
+      const bgUrlVal = el('backgroundUrl').value.trim();
+      let ytUrlVal = el('youtubeUrl').value.trim();
+
+      // Jika pengguna tidak sengaja menempel link YouTube di kolom URL Background, pindahkan otomatis
+      let cleanBgUrl = bgUrlVal;
+      if (isYoutubeLink(bgUrlVal)) {
+        if (!ytUrlVal) ytUrlVal = bgUrlVal;
+        cleanBgUrl = '';
+        el('backgroundUrl').value = '';
+        el('youtubeUrl').value = ytUrlVal;
+      }
+
       cfg = {
         ...cfg,
         displayMode: el('displayMode').value,
         infoSlideDuration: Math.max(5, Number(el('infoSlideDuration').value) || 12),
         mosque: el('mosqueInput').value.trim() || defaults.mosque,
         location: el('location').value.trim(),
+        scheduleMode: el('scheduleMode').value,
+        latitude: Number(el('latitudeInput').value) || -7.2575,
+        longitude: Number(el('longitudeInput').value) || 112.7521,
+        timezone: Number(el('timezoneInput').value) || 7,
         hijriOffset: Number(el('hijriOffset').value) || 0,
         fridayMode: el('fridayMode').value,
-        backgroundUrl: el('backgroundUrl').value.trim(),
+        backgroundUrl: cleanBgUrl,
         slideDuration: Math.max(5, Number(el('slideDuration').value) || 15),
-        youtube: el('youtubeUrl').value.trim(),
+        youtube: ytUrlVal,
         kasAwal: Number(el('kasAwal').value) || 0,
         kasMasuk: Number(el('kasMasuk').value) || 0,
         kasKeluar: Number(el('kasKeluar').value) || 0,
@@ -570,7 +778,6 @@
     });
   }
 
-  // --- INISIALISASI ---
   buildAnalogDial();
   renderSettings();
   initAdminEvents();
