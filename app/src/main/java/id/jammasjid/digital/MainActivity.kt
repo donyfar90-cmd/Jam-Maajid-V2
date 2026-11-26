@@ -2,6 +2,8 @@ package id.jammasjid.digital
 
 import android.Manifest
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -182,5 +184,20 @@ class LocalServer(private val activity: Activity) : NanoHTTPD(8080) {
         p.endsWith(".jpg") || p.endsWith(".jpeg") -> "image/jpeg"
         p.endsWith(".webp") -> "image/webp"
         else -> "text/plain"
+    }
+}
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val action = intent.action
+        if (action == Intent.ACTION_BOOT_COMPLETED ||
+            action == "android.intent.action.QUICKBOOT_POWERON" ||
+            action == "com.htc.intent.action.QUICKBOOT_POWERON"
+        ) {
+            val launchIntent = Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(launchIntent)
+        }
     }
 }
