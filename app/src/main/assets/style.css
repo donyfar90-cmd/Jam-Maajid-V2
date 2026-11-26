@@ -750,3 +750,21 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
+/* Tambahkan di bagian paling bawah style.css */
+.gps-box, .photo-picker-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #f5f8fc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d4e0ec;
+  margin-bottom: 10px;
+}
+
+.gps-box small {
+  margin-top: 6px;
+  color: #52677a;
+  font-size: 12px;
+}
+
