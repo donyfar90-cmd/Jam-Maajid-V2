@@ -8,7 +8,6 @@
 </head>
 <body>
   <main id="screen">
-    <!-- Latar Belakang Foto / Slideshow -->
     <div id="background"></div>
     <div class="bg-vignette"></div>
 
@@ -26,7 +25,7 @@
           </svg>
         </div>
         <div class="mosque-text">
-          <h1 id="mosque">Masjid Baitul Ghofar</h1>
+          <h1 id="mosque">Masjid Nurul Himmah</h1>
           <p id="locationText">Surabaya</p>
         </div>
       </div>
@@ -43,7 +42,6 @@
 
     <!-- Area Tengah: Info/Laporan Masjid & YouTube -->
     <section class="stage-area" id="stageArea">
-      <!-- Panel Slide Informasi, Jumat, Kas & Pengumuman -->
       <div class="info-stage" id="infoStage" hidden>
         <div class="info-card">
           <div class="info-card-header">
@@ -54,7 +52,6 @@
         </div>
       </div>
 
-      <!-- Panel Tayangan YouTube -->
       <div class="youtube-stage" id="youtubeStage" hidden>
         <iframe id="youtube" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       </div>
@@ -71,7 +68,6 @@
 
     <!-- Bagian Bawah: Jam Analog + Jadwal Salat + Running Text -->
     <footer class="bottom-dock">
-      <!-- Jam Analog Bulat di Kiri Bawah -->
       <div class="analog-clock-wrap">
         <div class="analog-clock" id="analogClock">
           <div class="dial-ticks" id="dialTicks"></div>
@@ -87,7 +83,6 @@
         </div>
       </div>
 
-      <!-- Blok Kanan: 6 Kotak Salat + Ticker -->
       <div class="schedule-ticker-wrap">
         <div class="prayer-row" id="times"></div>
         <div class="ticker">
@@ -103,7 +98,7 @@
       <div class="admin-header">
         <div>
           <h1>Pengaturan Jam Masjid Digital V2</h1>
-          <p class="admin-intro">Atur identitas masjid, latar belakang, tayangan YouTube, jadwal salat, serta laporan kas & petugas Jumat.</p>
+          <p class="admin-intro">Atur identitas masjid, wilayah otomatis, gambar latar, YouTube, serta laporan kas & petugas Jumat.</p>
         </div>
         <button type="button" id="backToScreenBtn" class="btn-secondary">Kembali ke Layar Utama</button>
       </div>
@@ -124,14 +119,62 @@
           </label>
         </div>
 
-        <h2>2. Identitas Masjid</h2>
+        <h2>2. Identitas Masjid & Wilayah Otomatis (Jadwal Salat)</h2>
         <div class="grid">
           <label>Nama Masjid
             <input id="mosqueInput" placeholder="Contoh: Masjid Nurul Himmah">
           </label>
           <label>Alamat & Nomor Telepon
-            <input id="location" placeholder="Contoh: Jl. Raya Surabaya No. 10. Telp. 031-123456">
+            <input id="location" placeholder="Contoh: Jl. Raya Surabaya. Telp. 031-8064544">
           </label>
+          <label>Sumber Jadwal Salat
+            <select id="scheduleMode">
+              <option value="auto">Otomatis Sesuai Wilayah / Koordinat (Kemenag RI)</option>
+              <option value="manual">Input Jam Salat Manual</option>
+            </select>
+          </label>
+          <label>Pilih Wilayah / Kota Cepat
+            <select id="cityPreset">
+              <option value="">-- Pilih Kota / Kabupaten --</option>
+              <option value="-7.2575,112.7521,7">Surabaya (WIB)</option>
+              <option value="-7.4478,112.7183,7">Sidoarjo (WIB)</option>
+              <option value="-7.1568,112.6555,7">Gresik (WIB)</option>
+              <option value="-7.9666,112.6326,7">Malang (WIB)</option>
+              <option value="-7.4726,112.4336,7">Mojokerto (WIB)</option>
+              <option value="-7.6448,112.9033,7">Pasuruan (WIB)</option>
+              <option value="-6.2088,106.8456,7">DKI Jakarta (WIB)</option>
+              <option value="-6.4025,106.7942,7">Depok (WIB)</option>
+              <option value="-6.5971,106.8060,7">Bogor (WIB)</option>
+              <option value="-6.9175,107.6191,7">Bandung (WIB)</option>
+              <option value="-6.9667,110.4167,7">Semarang (WIB)</option>
+              <option value="-7.7956,110.3695,7">Yogyakarta (WIB)</option>
+              <option value="-7.5755,110.8243,7">Surakarta / Solo (WIB)</option>
+              <option value="3.5952,98.6722,7">Medan (WIB)</option>
+              <option value="-2.9761,104.7754,7">Palembang (WIB)</option>
+              <option value="-8.6705,115.2126,8">Denpasar / Bali (WITA)</option>
+              <option value="-5.1477,119.4327,8">Makassar (WITA)</option>
+              <option value="-1.2379,116.8529,8">Balikpapan (WITA)</option>
+              <option value="-3.3186,114.5944,8">Banjarmasin (WITA)</option>
+              <option value="-2.5916,140.6690,9">Jayapura (WIT)</option>
+            </select>
+          </label>
+          <label>Latitude (Garis Lintang)
+            <input id="latitudeInput" type="number" step="any" placeholder="-7.2575">
+          </label>
+          <label>Longitude (Garis Bujur)
+            <input id="longitudeInput" type="number" step="any" placeholder="112.7521">
+          </label>
+          <label>Zona Waktu (UTC Offset)
+            <select id="timezoneInput">
+              <option value="7">WIB (UTC +7)</option>
+              <option value="8">WITA (UTC +8)</option>
+              <option value="9">WIT (UTC +9)</option>
+            </select>
+          </label>
+          <div class="gps-box">
+            <button type="button" id="detectGpsBtn" class="btn-secondary">📍 Ambil Lokasi GPS Perangkat Otomatis</button>
+            <small id="gpsStatus">Koordinat menentukan jam salat otomatis setiap hari.</small>
+          </div>
           <label>Koreksi Tanggal Hijriah (hari)
             <input id="hijriOffset" type="number" min="-3" max="3" value="0">
           </label>
@@ -146,11 +189,14 @@
 
         <h2>3. Gambar Latar Belakang (Background)</h2>
         <div class="grid">
-          <label>Tambah Foto dari Galeri HP / Perangkat
-            <input id="backgroundFile" type="file" accept="image/*" multiple>
-          </label>
-          <label>URL Gambar Background Online (opsional)
-            <input id="backgroundUrl" placeholder="https://...">
+          <div class="photo-picker-box">
+            <label style="margin-bottom:4px;">Tambah Foto dari Galeri HP / Perangkat</label>
+            <input id="backgroundFile" type="file" accept="image/*,image/jpeg,image/png,image/webp" multiple style="display:none;">
+            <button type="button" id="pickPhotoBtn" class="btn-secondary" style="width:100%;">🖼️ Buka Galeri / Pilih Foto</button>
+            <small style="color:#52677a;display:block;margin-top:4px;">Pilih satu atau beberapa foto sekaligus untuk slideshow.</small>
+          </div>
+          <label>URL Gambar Background Online (opsional, bukan link YouTube)
+            <input id="backgroundUrl" placeholder="https://contoh.com/masjid.jpg">
           </label>
           <label>Durasi Slideshow Background (detik)
             <input id="slideDuration" type="number" min="5" value="15">
@@ -167,11 +213,11 @@
         </label>
 
         <h2>5. Jadwal Salat, Jeda Iqomah & Koreksi</h2>
-        <h3>Waktu Salat (HH:MM)</h3>
+        <h3>Waktu Salat (Otomatis terisi jika mode Wilayah/GPS aktif, atau ubah manual)</h3>
         <div class="grid-6" id="timeFields"></div>
         <h3>Jeda Iqomah (menit)</h3>
         <div class="grid-6" id="iqFields"></div>
-        <h3>Koreksi Waktu Salat (menit)</h3>
+        <h3>Koreksi / Ihtiyat Waktu Salat (menit, default +2 menit)</h3>
         <div class="grid-6" id="offFields"></div>
 
         <h2>6. Laporan Kas & Keuangan Masjid</h2>
@@ -185,7 +231,7 @@
           <label>Pengeluaran Pekan Ini (Rp)
             <input id="kasKeluar" type="number" value="0">
           </label>
-          <label>Keterangan Kas (contoh: Infaq Jumat & Kotak Amal)
+          <label>Keterangan Kas
             <input id="kasNote" placeholder="Infaq Jumat & Operasional Masjid">
           </label>
         </div>
@@ -207,7 +253,7 @@
         </div>
 
         <h2>8. Pengumuman, Laporan Kegiatan & Running Text</h2>
-        <label>Pengumuman Masjid (kosongkan jika tidak ingin ditampilkan di slide)
+        <label>Pengumuman Masjid
           <textarea id="announcementInput" rows="4"></textarea>
         </label>
         <label>Laporan Kegiatan / Informasi Masjid Lainnya
