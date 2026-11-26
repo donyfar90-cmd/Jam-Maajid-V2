@@ -1,1 +1,752 @@
-:root{--navy:#061b2d;--blue:#073d69;--gold:#e4c56a;--white:#f8fbff;--glass:rgba(13,39,60,.78);--border:rgba(255,255,255,.16)}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--navy);color:var(--white)}body{overflow:hidden}#screen{position:relative;width:100vw;height:100vh;min-height:520px;display:flex;flex-direction:column;padding:clamp(12px,2.4vw,34px);gap:clamp(8px,1.2vh,16px);overflow:hidden}#background{position:absolute;inset:0;background:linear-gradient(125deg,#0a2540,#071a2b);background-position:center;background-size:cover;transition:background-image 1s;z-index:0}.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(1,12,23,.5),rgba(1,12,23,.15) 38%,rgba(1,12,23,.72));z-index:1}#screen>*:not(#background):not(.shade){position:relative;z-index:2}.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}.mosque-info h1{font-size:clamp(18px,3vw,42px);margin:0;color:#fff4bd;font-weight:700}.mosque-info p{margin:3px 0 0;font-size:clamp(11px,1.5vw,20px);opacity:.85}#date{font-size:clamp(13px,2.2vw,30px);text-align:right;color:#fff4bd}.clock-area{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}.clock-area #clock{font-weight:300;letter-spacing:.025em;line-height:.95;font-size:clamp(70px,18vw,260px);text-shadow:0 5px 30px rgba(0,0,0,.35);white-space:nowrap}.next-prayer{flex:none;text-align:center;background:var(--glass);border:1px solid var(--border);border-radius:clamp(12px,2vw,28px);padding:clamp(8px,1.4vh,18px)}.next-label{font-size:clamp(11px,1.7vw,24px);letter-spacing:.16em;opacity:.82}.next-prayer #next{font-size:clamp(24px,4vw,52px);color:var(--gold);margin:3px 0}.next-prayer #count{font-size:clamp(25px,4.2vw,58px);font-variant-numeric:tabular-nums}.prayer-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:clamp(4px,1vw,14px);flex:none}.prayer-card{background:var(--glass);border:1px solid var(--border);border-radius:clamp(8px,1.5vw,20px);padding:clamp(5px,1vw,14px);text-align:center;min-width:0}.prayer-card .name{font-size:clamp(11px,2.2vw,30px);color:#ffe6a1;white-space:nowrap}.prayer-card .time{font-size:clamp(18px,3.3vw,48px);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}.prayer-card.active{background:rgba(190,151,48,.32);border-color:var(--gold);box-shadow:0 0 20px rgba(228,197,106,.2)}.content-area{display:grid;grid-template-columns:1fr 1fr;gap:clamp(6px,1vw,12px);max-height:20vh;min-height:0}.info-panel,.video-panel{background:rgba(4,20,34,.85);border:1px solid var(--border);border-radius:12px;padding:clamp(7px,1.2vw,16px);overflow:hidden}.info-panel h2{font-size:clamp(11px,1.6vw,22px);color:var(--gold);margin:0 0 5px}.info-panel>div{font-size:clamp(12px,1.7vw,24px);white-space:pre-wrap;overflow:auto;max-height:12vh}.video-panel{min-height:100px}.video-panel iframe{width:100%;height:100%;min-height:100px;border:0}.content-area:has(.video-panel:not([hidden])){grid-template-columns:1fr 1fr}.ticker{flex:none;overflow:hidden;background:#030a11;border-top:2px solid var(--gold);padding:6px 0;white-space:nowrap}.ticker span{display:inline-block;font-size:clamp(15px,2.2vw,30px);font-weight:600;color:#ffe8a2;animation:ticker 28s linear infinite;padding-left:100%}@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-100%)}}#admin{position:fixed;inset:0;z-index:50;background:#f3f6fa;color:#122436;overflow:auto;padding:18px max(14px,4vw);font-family:system-ui,Arial}#admin h1{font-size:clamp(22px,4vw,32px);color:#06416e;margin:4px 0}#admin h2{font-size:18px;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid #d5e0eb;color:#06416e}#admin .admin-intro{color:#51677b;margin:6px 0 16px}#admin form{max-width:900px;margin:auto}#admin label{display:block;font-weight:600;margin:10px 0;color:#23394d}#admin input,#admin textarea{display:block;width:100%;font:inherit;font-weight:400;margin-top:5px;border:1px solid #c5d2df;border-radius:8px;background:white;color:#172a3a;padding:11px;outline-color:#1378b8}#admin input[type=file]{padding:8px}#admin .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#admin button{display:block;width:100%;margin:20px 0;padding:14px;border:0;border-radius:9px;background:#075a91;color:white;font-weight:700;font-size:16px}#admin button:active{filter:brightness(.9)}#admin #saved{font-weight:700;color:#147344}#admin .admin-note{font-size:13px;color:#52687a;border-top:1px solid #d8e1e9;padding-top:12px}#imageStatus{font-size:13px;color:#52687a;margin:4px 0}@media(max-width:650px){.prayer-row{grid-template-columns:repeat(3,1fr)}.content-area{grid-template-columns:1fr;max-height:18vh}.report-panel{display:none}#screen{padding:9px;gap:7px}.clock-area #clock{font-size:clamp(64px,19vw,130px)}.next-prayer{padding:7px}.ticker{padding:4px 0}.mosque-info h1{font-size:20px}#date{font-size:13px}}@media(orientation:portrait){#screen{min-height:100vh}.clock-area{min-height:90px}.content-area{max-height:16vh}.prayer-row{grid-template-columns:repeat(3,1fr)}}
+:root {
+  --blue-dark: #07386b;
+  --blue-main: #0c4c8a;
+  --blue-light: #1363b0;
+  --gold-bright: #ffe600;
+  --white: #ffffff;
+  --border-gold: rgba(212, 175, 55, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  background: #061c33;
+  color: var(--white);
+  overflow: hidden;
+}
+
+/* LAYAR UTAMA */
+#screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 3px solid #9e8245;
+  overflow: hidden;
+}
+
+#background {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #0d3b66 0%, #1d5b96 50%, #092642 100%);
+  background-position: center;
+  background-size: cover;
+  transition: background-image 1s ease-in-out;
+  z-index: 0;
+}
+
+.bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.35) 0%,
+    rgba(0, 0, 0, 0.05) 35%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* HEADER ATAS */
+.topbar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.mosque-banner {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.5vw, 18px);
+  background: linear-gradient(180deg, #125ca1 0%, #093b6e 100%);
+  padding: clamp(10px, 1.5vh, 16px) clamp(24px, 3.5vw, 48px) clamp(12px, 1.8vh, 20px) clamp(14px, 2vw, 24px);
+  border-bottom-right-radius: clamp(32px, 5vw, 64px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  border-right: 2px solid rgba(255, 255, 255, 0.25);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  max-width: 58%;
+}
+
+.mosque-logo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+}
+
+.mosque-logo svg {
+  width: clamp(38px, 4.5vw, 62px);
+  height: clamp(38px, 4.5vw, 62px);
+}
+
+.mosque-text h1 {
+  font-size: clamp(18px, 2.7vw, 38px);
+  font-weight: 700;
+  line-height: 1.15;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.mosque-text p {
+  font-size: clamp(10px, 1.15vw, 15px);
+  color: #e3f0ff;
+  margin-top: 3px;
+  opacity: 0.95;
+}
+
+.top-right-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: 1;
+}
+
+.date-bar {
+  width: 100%;
+  background: rgba(58, 62, 68, 0.82);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  text-align: right;
+  padding: clamp(6px, 1vh, 11px) clamp(14px, 2vw, 24px);
+  font-size: clamp(13px, 1.75vw, 24px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.countdown-pill {
+  margin-top: clamp(6px, 1vh, 10px);
+  margin-right: clamp(12px, 1.8vw, 22px);
+  background: rgba(255, 255, 255, 0.94);
+  color: #1a2530;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: clamp(5px, 0.8vh, 8px) clamp(12px, 1.5vw, 18px);
+  border-radius: 8px;
+  font-size: clamp(14px, 1.75vw, 24px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  border: 1px solid #cfd8e3;
+}
+
+.countdown-pill .clock-icon {
+  color: #0c4c8a;
+  font-size: 1.05em;
+}
+
+.countdown-pill #nextLabel {
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.countdown-pill #count {
+  color: #0b192c;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* AREA TENGAH (STAGE INFO / YOUTUBE) */
+.stage-area {
+  position: relative;
+  z-index: 8;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(10px, 2vh, 24px) clamp(16px, 4vw, 60px);
+  min-height: 0;
+}
+
+.info-stage {
+  width: 100%;
+  max-width: 1050px;
+  height: 100%;
+  max-height: 52vh;
+  display: flex;
+}
+
+.info-stage[hidden],
+.youtube-stage[hidden],
+.iqomah-overlay[hidden] {
+  display: none !important;
+}
+
+.info-card {
+  width: 100%;
+  background: rgba(7, 34, 64, 0.86);
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255, 230, 0, 0.45);
+  border-radius: 18px;
+  padding: clamp(14px, 2.2vh, 26px) clamp(18px, 2.8vw, 34px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.info-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.info-badge {
+  background: var(--gold-bright);
+  color: #072647;
+  font-weight: 800;
+  font-size: clamp(13px, 1.6vw, 21px);
+  padding: 4px 14px;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+}
+
+.slide-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.slide-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slide-dots span.active {
+  background: var(--gold-bright);
+  transform: scale(1.2);
+}
+
+.info-card-body {
+  flex: 1;
+  overflow-y: auto;
+  font-size: clamp(16px, 2.1vw, 28px);
+  line-height: 1.5;
+  color: #f8fbff;
+}
+
+/* Tabel Kas & Jadwal Jumat di dalam Slide */
+.kas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.kas-item {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.kas-item .lbl {
+  font-size: clamp(12px, 1.3vw, 17px);
+  color: #b8d8f8;
+  display: block;
+}
+
+.kas-item .val {
+  font-size: clamp(18px, 2.3vw, 32px);
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.kas-item.saldo .val {
+  color: var(--gold-bright);
+}
+
+.jumat-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.jumat-box {
+  background: rgba(255, 255, 255, 0.09);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border-left: 4px solid var(--gold-bright);
+}
+
+.jumat-box small {
+  display: block;
+  font-size: clamp(12px, 1.2vw, 16px);
+  color: #ffd966;
+  text-transform: uppercase;
+}
+
+.jumat-box strong {
+  font-size: clamp(16px, 2vw, 26px);
+}
+
+/* YOUTUBE STAGE */
+.youtube-stage {
+  width: 100%;
+  max-width: 920px;
+  height: 100%;
+  max-height: 54vh;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 3px solid var(--gold-bright);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+}
+
+.youtube-stage iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* OVERLAY IQOMAH */
+.iqomah-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(4, 18, 36, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.iqomah-box {
+  border: 3px solid var(--gold-bright);
+  background: linear-gradient(180deg, #0d4b8a, #062547);
+  padding: clamp(24px, 5vw, 54px);
+  border-radius: 24px;
+  box-shadow: 0 0 50px rgba(255, 230, 0, 0.25);
+}
+
+.iqomah-title {
+  font-size: clamp(22px, 3.5vw, 46px);
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.08em;
+}
+
+.iqomah-timer {
+  font-size: clamp(72px, 14vw, 180px);
+  font-weight: 800;
+  color: var(--gold-bright);
+  line-height: 1.05;
+  margin: 12px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.iqomah-sub {
+  font-size: clamp(15px, 2vw, 26px);
+  color: #dcebfa;
+}
+
+/* FOOTER BAWAH: JAM ANALOG + 6 JADWAL SALAT + TICKER */
+.bottom-dock {
+  position: relative;
+  z-index: 15;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  background: rgba(5, 25, 48, 0.7);
+}
+
+.analog-clock-wrap {
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+  width: clamp(135px, 16vw, 225px);
+  height: clamp(115px, 13.5vw, 185px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-left: clamp(6px, 1vw, 14px);
+  padding-bottom: clamp(4px, 0.8vh, 10px);
+}
+
+.analog-clock {
+  position: relative;
+  width: clamp(132px, 15.5vw, 215px);
+  height: clamp(132px, 15.5vw, 215px);
+  border-radius: 50%;
+  background: radial-gradient(circle, #0e4682 0%, #062547 85%, #041830 100%);
+  border: clamp(4px, 0.5vw, 7px) solid #1663b3;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.65), inset 0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+.dial-ticks, .dial-numbers {
+  position: absolute;
+  inset: 0;
+}
+
+.dial-tick {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 1.5px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.65);
+  transform-origin: 50% calc(clamp(132px, 15.5vw, 215px) / 2 - 4px);
+}
+
+.dial-tick.major {
+  width: 2.5px;
+  height: 10px;
+  background: #ffffff;
+}
+
+.dial-num {
+  position: absolute;
+  font-size: clamp(10px, 1.15vw, 16px);
+  font-weight: 700;
+  color: #ffffff;
+  transform: translate(-50%, -50%);
+}
+
+.dial-brand {
+  position: absolute;
+  left: 50%;
+  bottom: 24%;
+  transform: translateX(-50%);
+  text-align: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.dial-brand .brand-main {
+  display: block;
+  font-size: clamp(8px, 0.95vw, 13px);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+}
+
+.dial-brand .brand-sub {
+  display: block;
+  font-size: clamp(6px, 0.65vw, 9px);
+  color: #a8d0f8;
+}
+
+.hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  transform-origin: 50% 100%;
+  border-radius: 4px;
+}
+
+.hour-hand {
+  width: 4px;
+  height: 27%;
+  margin-left: -2px;
+  background: #ffffff;
+  z-index: 3;
+}
+
+.minute-hand {
+  width: 3px;
+  height: 38%;
+  margin-left: -1.5px;
+  background: #ffffff;
+  z-index: 4;
+}
+
+.second-hand {
+  width: 2px;
+  height: 42%;
+  margin-left: -1px;
+  background: #ff2e2e;
+  z-index: 5;
+}
+
+.center-cap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: #ff2e2e;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+}
+
+/* DERETAN 6 KOTAK SALAT & RUNNING TEXT */
+.schedule-ticker-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.prayer-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  background: linear-gradient(180deg, #105596 0%, #093a6b 100%);
+  border-top: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+.prayer-card {
+  padding: clamp(8px, 1.3vh, 16px) clamp(6px, 1vw, 14px);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  text-align: left;
+  transition: background 0.3s;
+}
+
+.prayer-card:last-child {
+  border-right: none;
+}
+
+.prayer-card .name {
+  font-size: clamp(13px, 1.85vw, 26px);
+  font-weight: 500;
+  color: #ffffff;
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+
+.prayer-card .time {
+  font-size: clamp(20px, 3.1vw, 44px);
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Waktu Salat Berikutnya / Aktif berwarna Kuning Terang seperti Ashar pada contoh */
+.prayer-card.active {
+  background: linear-gradient(180deg, #1668b5 0%, #0b4680 100%);
+}
+
+.prayer-card.active .name,
+.prayer-card.active .time {
+  color: var(--gold-bright);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.ticker {
+  background: #0b0e11;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  padding: clamp(6px, 0.9vh, 11px) 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-track {
+  display: inline-block;
+  padding-left: 100%;
+  font-size: clamp(15px, 2vw, 28px);
+  font-weight: 600;
+  color: #ffffff;
+  animation: marquee 30s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+/* PANEL ADMIN */
+#admin {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #eef3f8;
+  color: #162838;
+  overflow-y: auto;
+  padding: 20px clamp(14px, 4vw, 40px);
+}
+
+.admin-container {
+  max-width: 960px;
+  margin: 0 auto;
+  background: #ffffff;
+  padding: clamp(18px, 3vw, 32px);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 2px solid #e2eaf2;
+  padding-bottom: 14px;
+}
+
+.admin-header h1 {
+  font-size: clamp(20px, 3vw, 28px);
+  color: #093b6e;
+}
+
+.admin-intro {
+  color: #52677a;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+#admin h2 {
+  font-size: 18px;
+  color: #093b6e;
+  margin: 24px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2eaf2;
+}
+
+#admin h3 {
+  font-size: 14px;
+  color: #465d73;
+  margin: 12px 0 6px;
+}
+
+#admin label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #24384a;
+  margin-bottom: 10px;
+}
+
+#admin input, #admin textarea, #admin select {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 10px 12px;
+  border: 1px solid #c6d4e1;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  background: #fbfdff;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.grid-6 {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.photo-manage-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  background: #f5f8fc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed #b8cadb;
+  font-size: 13px;
+}
+
+.btn-save {
+  width: 100%;
+  margin-top: 22px;
+  padding: 15px;
+  background: #0c4c8a;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  padding: 10px 16px;
+  background: #e4edf7;
+  color: #093b6e;
+  border: 1px solid #bfd3e8;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-danger-sm {
+  padding: 6px 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+#saved {
+  margin-top: 12px;
+  font-weight: 700;
+  color: #15803d;
+  text-align: center;
+}
+
+/* RESPONSIVE HP / POTRAIT */
+@media (max-width: 768px) {
+  .topbar {
+    flex-direction: column;
+  }
+  .mosque-banner {
+    max-width: 100%;
+    width: 100%;
+    border-bottom-right-radius: 28px;
+  }
+  .top-right-group {
+    width: 100%;
+  }
+  .date-bar {
+    text-align: center;
+  }
+  .bottom-dock {
+    flex-direction: column;
+    align-items: center;
+  }
+  .analog-clock-wrap {
+    width: 110px;
+    height: 110px;
+    margin-bottom: -14px;
+    padding: 0;
+  }
+  .analog-clock {
+    width: 106px;
+    height: 106px;
+  }
+  .dial-tick {
+    transform-origin: 50% 49px;
+  }
+  .schedule-ticker-wrap {
+    width: 100%;
+  }
+  .prayer-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .grid, .grid-6, .kas-grid, .jumat-list {
+    grid-template-columns: 1fr;
+  }
+}
