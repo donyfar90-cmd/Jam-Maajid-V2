@@ -1,127 +1,228 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jam Masjid Digital V2</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jam Masjid Digital V2</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <main id="screen">
+    <!-- Latar Belakang Foto / Slideshow -->
+    <div id="background"></div>
+    <div class="bg-vignette"></div>
 
-<main id="screen">
-  <div id="background"></div>
-  <div class="shade"></div>
+    <!-- Header Atas -->
+    <header class="topbar">
+      <div class="mosque-banner" id="openAdminBtn" title="Klik untuk membuka Pengaturan">
+        <div class="mosque-logo">
+          <svg viewBox="0 0 64 64" width="44" height="44" aria-hidden="true">
+            <circle cx="32" cy="32" r="30" fill="#ffffff"/>
+            <path d="M35 10a9 9 0 1 0 7.5 13.9A7.2 7.2 0 1 1 35 10z" fill="#0c4c8a"/>
+            <polygon points="39,14 40.3,17 43.5,17.3 41,19.4 41.8,22.5 39,20.8 36.2,22.5 37,19.4 34.5,17.3 37.7,17" fill="#0c4c8a"/>
+            <path d="M20 40c0-8 12-15 12-15s12 7 12 15v12h-6v-9a6 6 0 0 0-12 0v9h-6V40z" fill="#0c4c8a"/>
+            <rect x="16" y="34" width="3" height="18" rx="1.5" fill="#0c4c8a"/>
+            <rect x="45" y="34" width="3" height="18" rx="1.5" fill="#0c4c8a"/>
+          </svg>
+        </div>
+        <div class="mosque-text">
+          <h1 id="mosque">Masjid Baitul Ghofar</h1>
+          <p id="locationText">Surabaya</p>
+        </div>
+      </div>
 
-  <header class="topbar">
-    <div class="mosque-info">
-      <h1 id="mosque">Masjid Baitul Ghofar</h1>
-      <p id="locationText">Surabaya</p>
+      <div class="top-right-group">
+        <div class="date-bar" id="dateBar">Memuat tanggal...</div>
+        <div class="countdown-pill" id="countdownPill">
+          <span class="clock-icon">🕒</span>
+          <span id="nextLabel">Subuh</span>
+          <strong id="count">-00:00:00</strong>
+        </div>
+      </div>
+    </header>
+
+    <!-- Area Tengah: Info/Laporan Masjid & YouTube -->
+    <section class="stage-area" id="stageArea">
+      <!-- Panel Slide Informasi, Jumat, Kas & Pengumuman -->
+      <div class="info-stage" id="infoStage" hidden>
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="info-badge" id="slideBadge">INFORMASI MASJID</span>
+            <div class="slide-dots" id="slideDots"></div>
+          </div>
+          <div class="info-card-body" id="slideContent"></div>
+        </div>
+      </div>
+
+      <!-- Panel Tayangan YouTube -->
+      <div class="youtube-stage" id="youtubeStage" hidden>
+        <iframe id="youtube" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </section>
+
+    <!-- Overlay Hitung Mundur Iqomah -->
+    <div class="iqomah-overlay" id="iqomahOverlay" hidden>
+      <div class="iqomah-box">
+        <div class="iqomah-title" id="iqomahTitle">MENUJU IQOMAH SUBUH</div>
+        <div class="iqomah-timer" id="iqomahTimer">10:00</div>
+        <div class="iqomah-sub">Mohon luruskan dan rapatkan shaf, serta nonaktifkan nada dering ponsel.</div>
+      </div>
     </div>
-    <div id="date">Tanggal</div>
-  </header>
 
-  <section class="clock-area">
-    <div id="clock">00:00:00</div>
+    <!-- Bagian Bawah: Jam Analog + Jadwal Salat + Running Text -->
+    <footer class="bottom-dock">
+      <!-- Jam Analog Bulat di Kiri Bawah -->
+      <div class="analog-clock-wrap">
+        <div class="analog-clock" id="analogClock">
+          <div class="dial-ticks" id="dialTicks"></div>
+          <div class="dial-numbers" id="dialNumbers"></div>
+          <div class="dial-brand">
+            <span class="brand-main">MASJID</span>
+            <span class="brand-sub">DIGITAL V2</span>
+          </div>
+          <div class="hand hour-hand" id="hourHand"></div>
+          <div class="hand minute-hand" id="minuteHand"></div>
+          <div class="hand second-hand" id="secondHand"></div>
+          <div class="center-cap"></div>
+        </div>
+      </div>
+
+      <!-- Blok Kanan: 6 Kotak Salat + Ticker -->
+      <div class="schedule-ticker-wrap">
+        <div class="prayer-row" id="times"></div>
+        <div class="ticker">
+          <div class="ticker-track" id="tickerText">Selamat datang di masjid kami</div>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- HALAMAN PENGATURAN (ADMIN) -->
+  <section id="admin" hidden>
+    <div class="admin-container">
+      <div class="admin-header">
+        <div>
+          <h1>Pengaturan Jam Masjid Digital V2</h1>
+          <p class="admin-intro">Atur identitas masjid, latar belakang, tayangan YouTube, jadwal salat, serta laporan kas & petugas Jumat.</p>
+        </div>
+        <button type="button" id="backToScreenBtn" class="btn-secondary">Kembali ke Layar Utama</button>
+      </div>
+
+      <form id="form">
+        <h2>1. Mode Tampilan Layar Tengah</h2>
+        <div class="grid">
+          <label>Mode Utama Layar Tengah
+            <select id="displayMode">
+              <option value="background">Foto Latar Penuh (Seperti Desain Utama)</option>
+              <option value="info">Slide Informasi (Pengumuman, Kas, Jumat, Laporan)</option>
+              <option value="youtube">Tayangan Video / Live YouTube</option>
+              <option value="auto">Otomatis Bergantian (Foto ↔ Informasi ↔ YouTube)</option>
+            </select>
+          </label>
+          <label>Durasi Pergantian Slide Informasi (detik)
+            <input id="infoSlideDuration" type="number" min="5" value="12">
+          </label>
+        </div>
+
+        <h2>2. Identitas Masjid</h2>
+        <div class="grid">
+          <label>Nama Masjid
+            <input id="mosqueInput" placeholder="Contoh: Masjid Nurul Himmah">
+          </label>
+          <label>Alamat & Nomor Telepon
+            <input id="location" placeholder="Contoh: Jl. Raya Surabaya No. 10. Telp. 031-123456">
+          </label>
+          <label>Koreksi Tanggal Hijriah (hari)
+            <input id="hijriOffset" type="number" min="-3" max="3" value="0">
+          </label>
+          <label>Tampilkan Kolom Jumat / Dzuhur
+            <select id="fridayMode">
+              <option value="auto">Otomatis "Jumu'ah" saat Hari Jumat</option>
+              <option value="always_jumuah">Selalu Tampilkan "Jumu'ah"</option>
+              <option value="always_dzuhur">Selalu Tampilkan "Dzuhur"</option>
+            </select>
+          </label>
+        </div>
+
+        <h2>3. Gambar Latar Belakang (Background)</h2>
+        <div class="grid">
+          <label>Tambah Foto dari Galeri HP / Perangkat
+            <input id="backgroundFile" type="file" accept="image/*" multiple>
+          </label>
+          <label>URL Gambar Background Online (opsional)
+            <input id="backgroundUrl" placeholder="https://...">
+          </label>
+          <label>Durasi Slideshow Background (detik)
+            <input id="slideDuration" type="number" min="5" value="15">
+          </label>
+          <div class="photo-manage-box">
+            <span id="imageStatus">Belum ada foto lokal tersimpan.</span>
+            <button type="button" id="clearPhotosBtn" class="btn-danger-sm">Hapus Semua Foto Lokal</button>
+          </div>
+        </div>
+
+        <h2>4. Tayangan YouTube</h2>
+        <label>URL Video atau Live Streaming YouTube
+          <input id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=... atau https://youtu.be/...">
+        </label>
+
+        <h2>5. Jadwal Salat, Jeda Iqomah & Koreksi</h2>
+        <h3>Waktu Salat (HH:MM)</h3>
+        <div class="grid-6" id="timeFields"></div>
+        <h3>Jeda Iqomah (menit)</h3>
+        <div class="grid-6" id="iqFields"></div>
+        <h3>Koreksi Waktu Salat (menit)</h3>
+        <div class="grid-6" id="offFields"></div>
+
+        <h2>6. Laporan Kas & Keuangan Masjid</h2>
+        <div class="grid">
+          <label>Saldo Awal (Rp)
+            <input id="kasAwal" type="number" value="0">
+          </label>
+          <label>Pemasukan / Infaq Pekan Ini (Rp)
+            <input id="kasMasuk" type="number" value="0">
+          </label>
+          <label>Pengeluaran Pekan Ini (Rp)
+            <input id="kasKeluar" type="number" value="0">
+          </label>
+          <label>Keterangan Kas (contoh: Infaq Jumat & Kotak Amal)
+            <input id="kasNote" placeholder="Infaq Jumat & Operasional Masjid">
+          </label>
+        </div>
+
+        <h2>7. Petugas Salat Jumat</h2>
+        <div class="grid">
+          <label>Khatib Jumat
+            <input id="jumatKhatib" placeholder="Ustadz ...">
+          </label>
+          <label>Imam Salat Jumat
+            <input id="jumatImam" placeholder="Ustadz ...">
+          </label>
+          <label>Muadzin / Bilal
+            <input id="jumatMuadzin" placeholder="Bapak ...">
+          </label>
+          <label>Tema Khutbah / Catatan Jumat
+            <input id="jumatTema" placeholder="Pentingnya Menjaga Ukhuwah Islamiyah">
+          </label>
+        </div>
+
+        <h2>8. Pengumuman, Laporan Kegiatan & Running Text</h2>
+        <label>Pengumuman Masjid (kosongkan jika tidak ingin ditampilkan di slide)
+          <textarea id="announcementInput" rows="4"></textarea>
+        </label>
+        <label>Laporan Kegiatan / Informasi Masjid Lainnya
+          <textarea id="reportInput" rows="4"></textarea>
+        </label>
+        <label>Teks Berjalan (Running Text di Bawah)
+          <textarea id="message" rows="2"></textarea>
+        </label>
+
+        <button type="submit" class="btn-save">SIMPAN PENGATURAN</button>
+        <p id="saved"></p>
+      </form>
+    </div>
   </section>
 
-  <section class="next-prayer">
-    <div class="next-label">MENUJU SALAT BERIKUTNYA</div>
-    <div id="next">Subuh</div>
-    <div id="count">00:00:00</div>
-  </section>
-
-  <section class="prayer-row" id="times"></section>
-
-  <section class="content-area">
-    <div class="info-panel" id="announcementPanel">
-      <h2>INFORMASI & PENGUMUMAN</h2>
-      <div id="announcement">Selamat datang di masjid kami</div>
-    </div>
-
-    <div class="info-panel report-panel" id="reportPanel">
-      <h2>LAPORAN / INFORMASI MASJID</h2>
-      <div id="report">Informasi masjid</div>
-    </div>
-
-    <div class="video-panel" id="videoPanel" hidden>
-      <iframe id="youtube" allow="autoplay; encrypted-media; picture-in-picture"
-        allowfullscreen></iframe>
-    </div>
-  </section>
-
-  <div class="ticker">
-    <span id="text">Selamat datang di masjid kami</span>
-  </div>
-</main>
-
-<section id="admin" hidden>
-  <h1>Pengaturan Jam Masjid Digital V2</h1>
-  <p class="admin-intro">
-    Panel pengaturan lokal. Perubahan disimpan di perangkat Android.
-  </p>
-
-  <form id="form">
-
-    <h2>Identitas Masjid</h2>
-    <label>Nama Masjid
-      <input id="mosqueInput">
-    </label>
-    <label>Lokasi / Alamat
-      <input id="location">
-    </label>
-
-    <h2>Background Layar</h2>
-    <label>URL gambar background (opsional)
-      <input id="backgroundUrl" placeholder="https://...">
-    </label>
-    <label>Tambah foto dari HP
-      <input id="backgroundFile" type="file" accept="image/*" multiple>
-    </label>
-    <p id="imageStatus">Foto dapat ditambahkan dari galeri HP.</p>
-    <label>Durasi slideshow (detik)
-      <input id="slideDuration" type="number" min="5" value="15">
-    </label>
-
-    <h2>Jadwal Salat (HH:MM)</h2>
-    <div class="grid" id="timeFields"></div>
-
-    <h2>Jeda Iqomah (menit)</h2>
-    <div class="grid" id="iqFields"></div>
-
-    <h2>Koreksi waktu salat (menit)</h2>
-    <div class="grid" id="offFields"></div>
-
-    <h2>Pengumuman</h2>
-    <label>Isi pengumuman
-      <textarea id="announcementInput" rows="5"></textarea>
-    </label>
-
-    <h2>Laporan / Informasi</h2>
-    <label>Isi laporan
-      <textarea id="reportInput" rows="5"></textarea>
-    </label>
-
-    <h2>Tayangan YouTube</h2>
-    <label>URL video atau live streaming
-      <input id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=...">
-    </label>
-
-    <h2>Running Text</h2>
-    <label>Teks berjalan
-      <textarea id="message" rows="3"></textarea>
-    </label>
-
-    <button type="submit">SIMPAN PENGATURAN</button>
-    <p id="saved"></p>
-  </form>
-
-  <p class="admin-note">
-    Panel lokal: http://IP-ANDROID:8080/admin<br>
-    Perangkat harus berada di Wi-Fi yang sama.
-  </p>
-</section>
-
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
