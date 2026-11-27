@@ -1,4 +1,3 @@
-
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -9,7 +8,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'id.jammasjid.smartmasjid'
+        applicationId 'id.jammasjid.digital'
         minSdk 23
         targetSdk 35
         // Nomor versi naik otomatis di setiap build GitHub Actions
