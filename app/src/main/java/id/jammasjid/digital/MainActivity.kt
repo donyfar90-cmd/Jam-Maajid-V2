@@ -104,7 +104,7 @@ class MainActivity : Activity() {
         }
 
         setContentView(webView)
-        webView.loadUrl("http://127.0.0.1:8080/")
+        webView.loadUrl("http://127.0.0.1:8081/")
     }
 
     @Deprecated("Deprecated in Java")
@@ -136,7 +136,7 @@ class MainActivity : Activity() {
     }
 }
 
-class LocalServer(private val activity: Activity) : NanoHTTPD(8080) {
+class LocalServer(private val activity: Activity) : NanoHTTPD(8081) {
     private val configFile = File(activity.filesDir, "settings.json")
     private val defaults = JSONObject(
         """{"mosque":"Masjid Baitul Ghofar","location":"Surabaya","timezone":"Asia/Jakarta","text":"Selamat datang di masjid kami. Mohon luruskan dan rapatkan shaf.","times":{"Subuh":"04:20","Syuruq":"05:40","Dzuhur":"11:40","Ashar":"15:00","Maghrib":"17:35","Isya":"18:45"},"iqamah":{"Subuh":10,"Dzuhur":10,"Ashar":10,"Maghrib":5,"Isya":10},"offset":{"Subuh":0,"Dzuhur":0,"Ashar":0,"Maghrib":0,"Isya":0}}"""

@@ -9,11 +9,26 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'id.jammasjid.digital'
+        applicationId 'id.jammasjid.smartmasjid'
         minSdk 23
         targetSdk 35
-        versionCode 1
-        versionName '1.0'
+        // Nomor versi naik otomatis di setiap build GitHub Actions
+        def build = (System.getenv('GITHUB_RUN_NUMBER') ?: '0') as int
+        versionCode 100 + build
+        versionName "1.1.${build}"
+    }
+
+    // Kunci tanda tangan tetap, dibaca dari GitHub Secrets (jangan disimpan di repo)
+    def keystorePath = System.getenv('KEYSTORE_FILE')
+    if (keystorePath) {
+        signingConfigs {
+            debug {
+                storeFile file(keystorePath)
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias 'smartmasjid'
+                keyPassword System.getenv('KEYSTORE_PASSWORD')
+            }
+        }
     }
 
     compileOptions {
