@@ -1,4 +1,6 @@
-# Jam Masjid Digital V2
+# Smart Masjid
+
+**Sebelum mengubah atau mengupdate aplikasi, baca [PANDUAN-UPDATE.md](PANDUAN-UPDATE.md).**
 
 Display landscape seperti digital signage masjid dengan jam, countdown salat berikutnya, jadwal salat editable, background/slideshow foto, pengumuman, laporan/info, running text, serta embed YouTube.
 
@@ -6,7 +8,7 @@ Display landscape seperti digital signage masjid dengan jam, countdown salat ber
 Upload/replace semua file proyek ke repository, kemudian buka Actions dan jalankan workflow Build Android APK. Artifact bernama `JamMasjidDigital-debug-apk`.
 
 ## Panel admin lokal
-Saat APK berjalan, panel setting tersedia pada `http://IP-ANDROID:8080/admin` dari perangkat lain di jaringan Wi-Fi yang sama. Upload foto background melalui panel; slideshow dan setting disimpan lokal pada perangkat Android.
+Saat APK berjalan, panel setting tersedia pada `http://IP-ANDROID:8081/admin` dari perangkat lain di jaringan Wi-Fi yang sama. Upload foto background melalui panel; slideshow dan setting disimpan lokal pada perangkat Android.
 
 YouTube embed memerlukan internet. Autoplay dibatasi oleh Android/WebView/YouTube, jadi video mungkin perlu ditekan Play.
 
