@@ -148,29 +148,55 @@ class LocalServer(private val activity: Activity) : NanoHTTPD(8081) {
         defaults
     }
 
+    private fun jsonResponse(status: Response.IStatus, content: String): Response {
+        return newFixedLengthResponse(status, "application/json; charset=utf-8", content).apply {
+            addHeader("Access-Control-Allow-Origin", "*")
+            addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            addHeader("Access-Control-Allow-Headers", "Content-Type")
+        }
+    }
+
     override fun serve(session: IHTTPSession): Response {
+        if (session.method == Method.OPTIONS) {
+            return jsonResponse(Response.Status.OK, "{}")
+        }
+
         if (session.method == Method.POST && session.uri == "/api/settings") {
             val body = HashMap<String, String>()
             session.parseBody(body)
             val data = JSONObject(body["postData"] ?: "{}")
             configFile.writeText(data.toString(2))
-            return newFixedLengthResponse(Response.Status.OK, "application/json", "{\"ok\":true}")
+            return jsonResponse(Response.Status.OK, """{"ok":true}""")
         }
+
         if (session.uri == "/api/settings") {
-            return newFixedLengthResponse(
-                Response.Status.OK,
-                "application/json",
-                readConfig().toString()
-            )
+            return jsonResponse(Response.Status.OK, readConfig().toString())
         }
+
+        if (session.uri == "/remote") {
+            return try {
+                val stream = activity.assets.open("remote.html")
+                newChunkedResponse(Response.Status.OK, "text/html; charset=utf-8", stream).apply {
+                    addHeader("Access-Control-Allow-Origin", "*")
+                }
+            } catch (_: Exception) {
+                newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", builtInRemoteHtml).apply {
+                    addHeader("Access-Control-Allow-Origin", "*")
+                }
+            }
+        }
+
         val path = if (session.uri == "/" || session.uri == "/admin") {
             "index.html"
         } else {
             session.uri.trimStart('/')
         }
+
         return try {
             val stream = activity.assets.open(path)
-            newChunkedResponse(Response.Status.OK, mime(path), stream)
+            newChunkedResponse(Response.Status.OK, mime(path), stream).apply {
+                addHeader("Access-Control-Allow-Origin", "*")
+            }
         } catch (_: Exception) {
             newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "File tidak ditemukan")
         }
@@ -185,6 +211,144 @@ class LocalServer(private val activity: Activity) : NanoHTTPD(8081) {
         p.endsWith(".webp") -> "image/webp"
         else -> "text/plain"
     }
+
+    private val builtInRemoteHtml = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remote Jam Masjid Digital</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: #0f172a; color: #f8fafc; padding: 14px; }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.25rem; margin: 0 0 4px; }
+    .sub { color: #94a3b8; font-size: 0.85rem; margin-bottom: 14px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    .card h2 { font-size: 0.98rem; margin: 0 0 8px; }
+    label { display: block; font-size: 0.8rem; color: #cbd5e1; margin: 8px 0 3px; }
+    input, textarea { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; }
+    textarea { min-height: 68px; resize: vertical; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    button { border: none; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; background: #10b981; color: #052e16; }
+    button.sec { background: #334155; color: #f8fafc; }
+    .status { margin-top: 10px; padding: 10px; border-radius: 8px; background: #090e1a; border: 1px solid #334155; font-size: 0.85rem; white-space: pre-line; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Remote Pengaturan Jam Masjid</h1>
+    <div class="sub">Terhubung ke server NanoHTTPD (port 8081) lewat Wi-Fi lokal</div>
+    <div class="card">
+      <h2>1. Alamat Perangkat</h2>
+      <label for="baseUrl">URL Server Android</label>
+      <input id="baseUrl" type="text" />
+      <div class="row"><button type="button" class="sec" onclick="loadSettings()">Ambil Data Saat Ini</button></div>
+    </div>
+    <div class="card">
+      <h2>2. Profil & Running Text</h2>
+      <label for="mosque">Nama Masjid</label><input id="mosque" type="text" />
+      <div class="grid-2">
+        <div><label for="location">Lokasi / Kota</label><input id="location" type="text" /></div>
+        <div><label for="timezone">Zona Waktu</label><input id="timezone" type="text" /></div>
+      </div>
+      <label for="text">Teks Berjalan (Running Text)</label><textarea id="text"></textarea>
+    </div>
+    <div class="card">
+      <h2>3. Jadwal Waktu (HH:MM)</h2>
+      <div class="grid-2">
+        <div><label for="t_Subuh">Subuh</label><input id="t_Subuh" type="time" /></div>
+        <div><label for="t_Syuruq">Syuruq</label><input id="t_Syuruq" type="time" /></div>
+        <div><label for="t_Dzuhur">Dzuhur</label><input id="t_Dzuhur" type="time" /></div>
+        <div><label for="t_Ashar">Ashar</label><input id="t_Ashar" type="time" /></div>
+        <div><label for="t_Maghrib">Maghrib</label><input id="t_Maghrib" type="time" /></div>
+        <div><label for="t_Isya">Isya</label><input id="t_Isya" type="time" /></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>4. Iqamah & Offset (Menit)</h2>
+      <div class="grid-3">
+        <div><label for="iq_Subuh">Iqamah Subuh</label><input id="iq_Subuh" type="number" /></div>
+        <div><label for="iq_Dzuhur">Iqamah Dzuhur</label><input id="iq_Dzuhur" type="number" /></div>
+        <div><label for="iq_Ashar">Iqamah Ashar</label><input id="iq_Ashar" type="number" /></div>
+        <div><label for="iq_Maghrib">Iqamah Maghrib</label><input id="iq_Maghrib" type="number" /></div>
+        <div><label for="iq_Isya">Iqamah Isya</label><input id="iq_Isya" type="number" /></div>
+      </div>
+      <div class="grid-3">
+        <div><label for="off_Subuh">Offset Subuh</label><input id="off_Subuh" type="number" /></div>
+        <div><label for="off_Dzuhur">Offset Dzuhur</label><input id="off_Dzuhur" type="number" /></div>
+        <div><label for="off_Ashar">Offset Ashar</label><input id="off_Ashar" type="number" /></div>
+        <div><label for="off_Maghrib">Offset Maghrib</label><input id="off_Maghrib" type="number" /></div>
+        <div><label for="off_Isya">Offset Isya</label><input id="off_Isya" type="number" /></div>
+      </div>
+      <div class="row"><button type="button" onclick="saveSettings()">Simpan ke Perangkat</button></div>
+      <div id="status" class="status">Siap digunakan.</div>
+    </div>
+  </div>
+  <script>
+    const PRAYERS = ['Subuh', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
+    const ALL_TIMES = ['Subuh', 'Syuruq', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
+    const urlInput = document.getElementById('baseUrl');
+    const statusEl = document.getElementById('status');
+    urlInput.value = (location.protocol.startsWith('http') && location.host) ? location.origin : 'http://192.168.1.10:8081';
+    const baseUrl = () => urlInput.value.trim().replace(/\/+$/, '');
+    const setStatus = msg => { statusEl.textContent = msg; };
+    function fillForm(cfg) {
+      document.getElementById('mosque').value = cfg.mosque || '';
+      document.getElementById('location').value = cfg.location || '';
+      document.getElementById('timezone').value = cfg.timezone || 'Asia/Jakarta';
+      document.getElementById('text').value = cfg.text || '';
+      const times = cfg.times || {};
+      ALL_TIMES.forEach(k => { document.getElementById('t_' + k).value = times[k] || ''; });
+      const iq = cfg.iqamah || {}, off = cfg.offset || {};
+      PRAYERS.forEach(k => {
+        document.getElementById('iq_' + k).value = iq[k] ?? 10;
+        document.getElementById('off_' + k).value = off[k] ?? 0;
+      });
+    }
+    function buildPayload() {
+      const times = {}, iqamah = {}, offset = {};
+      ALL_TIMES.forEach(k => { times[k] = document.getElementById('t_' + k).value || '00:00'; });
+      PRAYERS.forEach(k => {
+        iqamah[k] = Number(document.getElementById('iq_' + k).value || 0);
+        offset[k] = Number(document.getElementById('off_' + k).value || 0);
+      });
+      return {
+        mosque: document.getElementById('mosque').value.trim(),
+        location: document.getElementById('location').value.trim(),
+        timezone: document.getElementById('timezone').value.trim() || 'Asia/Jakarta',
+        text: document.getElementById('text').value,
+        times, iqamah, offset
+      };
+    }
+    async function loadSettings() {
+      setStatus('Mengambil data...');
+      try {
+        const res = await fetch(baseUrl() + '/api/settings');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        fillForm(await res.json());
+        setStatus('Data berhasil dimuat.');
+      } catch (e) { setStatus('Gagal memuat: ' + e.message); }
+    }
+    async function saveSettings() {
+      setStatus('Menyimpan...');
+      try {
+        const res = await fetch(baseUrl() + '/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildPayload())
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        setStatus('Pengaturan tersimpan ke settings.json!');
+      } catch (e) { setStatus('Gagal menyimpan: ' + e.message); }
+    }
+  </script>
+</body>
+</html>
+""".trimIndent()
 }
 
 class BootReceiver : BroadcastReceiver() {
