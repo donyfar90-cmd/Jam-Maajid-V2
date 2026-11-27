@@ -32,7 +32,22 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Siapkan kunci tanda tangan
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Secret KEYSTORE_BASE64 atau KEYSTORE_PASSWORD belum diisi"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$KEYSTORE_PASSWORD" -alias smartmasjid | grep -F "98:3C:94:83:B7:E0:4D:1E:6B:F5:F6:75:03:64:5A:82:05:BD:C3:D2:38:5D:47:C6:E8:E5:F9:9F:89:30:D3:5D" || { echo "::error::Kunci salah, lihat PANDUAN-UPDATE.md"; exit 1; }
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
       - name: Build APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: gradle assembleDebug
 
       - name: Upload APK
