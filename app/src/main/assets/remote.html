@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remote Jam Masjid Digital</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --border: #334155;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.3rem; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .card h2 { font-size: 1rem; margin: 0 0 10px; color: #e2e8f0; }
+    label { display: block; font-size: 0.82rem; color: var(--muted); margin: 8px 0 4px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #052e16;
+    }
+    button:hover { background: var(--accent-hover); }
+    button.secondary { background: #334155; color: var(--text); }
+    button.warn { background: var(--warn); color: #1c1917; }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      background: #0b1220;
+      border: 1px solid var(--border);
+      color: #cbd5e1;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Remote Jam Masjid Digital</h1>
+    <div class="sub">Isi & kirim pengaturan dari HP melalui jaringan Wi-Fi yang sama</div>
+
+    <div class="card">
+      <h2>1. Koneksi Perangkat Android</h2>
+      <label for="baseUrl">Alamat Server Aplikasi (NanoHTTPD)</label>
+      <input id="baseUrl" type="text" placeholder="http://192.168.1.50:8081" />
+      <div class="btn-row">
+        <button type="button" class="secondary" onclick="testConnection()">Cek Koneksi</button>
+        <button type="button" class="secondary" onclick="loadConfig()">Ambil Data dari TV/HP</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. Identitas Masjid & Mode Tampilan</h2>
+      <label for="mosqueName">Nama Masjid</label>
+      <input id="mosqueName" type="text" placeholder="Masjid Al-Ikhlas" />
+
+      <div class="grid-2">
+        <div>
+          <label for="displayMode">Mode Layar</label>
+          <select id="displayMode">
+            <option value="slideshow">Slideshow</option>
+            <option value="info">Info / Pengumuman</option>
+            <option value="youtube">YouTube</option>
+          </select>
+        </div>
+        <div>
+          <label for="iqomahMinutes">Jeda Iqomah (Menit)</label>
+          <input id="iqomahMinutes" type="number" min="1" max="60" value="10" />
+        </div>
+      </div>
+
+      <label for="runningText">Running Text / Pengumuman</label>
+      <textarea id="runningText" placeholder="Harap matikan atau senyapkan HP saat berada di dalam masjid..."></textarea>
+
+      <label for="youtubeUrl">Link / ID Video YouTube (Mode YouTube)</label>
+      <input id="youtubeUrl" type="text" placeholder="https://www.youtube.com/watch?v=..." />
+    </div>
+
+    <div class="card">
+      <h2>3. Koordinat GPS & Jadwal Sholat</h2>
+      <div class="grid-2">
+        <div>
+          <label for="lat">Latitude</label>
+          <input id="lat" type="text" placeholder="-7.2575" />
+        </div>
+        <div>
+          <label for="lng">Longitude</label>
+          <input id="lng" type="text" placeholder="112.7521" />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div><label for="subuh">Subuh</label><input id="subuh" type="time" /></div>
+        <div><label for="terbit">Terbit</label><input id="terbit" type="time" /></div>
+        <div><label for="dzuhur">Dzuhur</label><input id="dzuhur" type="time" /></div>
+        <div><label for="ashar">Ashar</label><input id="ashar" type="time" /></div>
+        <div><label for="maghrib">Maghrib</label><input id="maghrib" type="time" /></div>
+        <div><label for="isya">Isya</label><input id="isya" type="time" /></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>4. Kirim Pengaturan</h2>
+      <div class="btn-row">
+        <button type="button" onclick="saveConfig()">Simpan ke Perangkat</button>
+        <button type="button" class="warn" onclick="sendAction('reload')">Refresh Layar</button>
+      </div>
+      <div id="statusBox" class="status">Siap digunakan. Masukkan alamat IP perangkat Android lalu klik Cek Koneksi.</div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'jam_masjid_remote_url';
+    const baseUrlInput = document.getElementById('baseUrl');
+    const statusBox = document.getElementById('statusBox');
+
+    // Jika dibuka langsung dari server Android, otomatis pakai origin saat ini
+    if (location.protocol.startsWith('http') && location.host) {
+      baseUrlInput.value = localStorage.getItem(STORAGE_KEY) || location.origin;
+    } else {
+      baseUrlInput.value = localStorage.getItem(STORAGE_KEY) || 'http://192.168.1.50:8081';
+    }
+
+    function getBaseUrl() {
+      const clean = baseUrlInput.value.trim().replace(/\/+$/, '');
+      localStorage.setItem(STORAGE_KEY, clean);
+      return clean;
+    }
+
+    function setStatus(msg) {
+      statusBox.textContent = msg;
+    }
+
+    function collectPayload() {
+      return {
+        mosqueName: document.getElementById('mosqueName').value.trim(),
+        displayMode: document.getElementById('displayMode').value,
+        iqomahMinutes: Number(document.getElementById('iqomahMinutes').value || 10),
+        runningText: document.getElementById('runningText').value.trim(),
+        youtubeUrl: document.getElementById('youtubeUrl').value.trim(),
+        location: {
+          lat: document.getElementById('lat').value.trim(),
+          lng: document.getElementById('lng').value.trim()
+        },
+        prayerTimes: {
+          subuh: document.getElementById('subuh').value,
+          terbit: document.getElementById('terbit').value,
+          dzuhur: document.getElementById('dzuhur').value,
+          ashar: document.getElementById('ashar').value,
+          maghrib: document.getElementById('maghrib').value,
+          isya: document.getElementById('isya').value
+        }
+      };
+    }
+
+    function applyData(data) {
+      if (!data) return;
+      if (data.mosqueName !== undefined) document.getElementById('mosqueName').value = data.mosqueName;
+      if (data.displayMode) document.getElementById('displayMode').value = data.displayMode;
+      if (data.iqomahMinutes !== undefined) document.getElementById('iqomahMinutes').value = data.iqomahMinutes;
+      if (data.runningText !== undefined) document.getElementById('runningText').value = data.runningText;
+      if (data.youtubeUrl !== undefined) document.getElementById('youtubeUrl').value = data.youtubeUrl;
+      if (data.location) {
+        document.getElementById('lat').value = data.location.lat || '';
+        document.getElementById('lng').value = data.location.lng || '';
+      }
+      if (data.prayerTimes) {
+        const pt = data.prayerTimes;
+        document.getElementById('subuh').value = pt.subuh || '';
+        document.getElementById('terbit').value = pt.terbit || '';
+        document.getElementById('dzuhur').value = pt.dzuhur || '';
+        document.getElementById('ashar').value = pt.ashar || '';
+        document.getElementById('maghrib').value = pt.maghrib || '';
+        document.getElementById('isya').value = pt.isya || '';
+      }
+    }
+
+    async function testConnection() {
+      const url = getBaseUrl();
+      setStatus('Menghubungi ' + url + ' ...');
+      try {
+        const res = await fetch(url + '/api/config', { method: 'GET' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        setStatus('Terhubung ke ' + url + ' (Status OK).');
+      } catch (err) {
+        setStatus('Gagal terhubung ke ' + url + '\nPastikan HP dan perangkat jam masjid berada di Wi-Fi yang sama dan server aktif.\nDetail: ' + err.message);
+      }
+    }
+
+    async function loadConfig() {
+      const url = getBaseUrl();
+      setStatus('Mengambil pengaturan dari ' + url + ' ...');
+      try {
+        const res = await fetch(url + '/api/config');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        applyData(data);
+        setStatus('Pengaturan berhasil dimuat dari perangkat.');
+      } catch (err) {
+        setStatus('Gagal mengambil data: ' + err.message);
+      }
+    }
+
+    async function saveConfig() {
+      const url = getBaseUrl();
+      const payload = collectPayload();
+      setStatus('Mengirim pengaturan ke ' + url + ' ...');
+      try {
+        const res = await fetch(url + '/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        setStatus('Pengaturan berhasil disimpan dan diterapkan!');
+      } catch (err) {
+        setStatus('Gagal menyimpan pengaturan: ' + err.message);
+      }
+    }
+
+    async function sendAction(actionName) {
+      const url = getBaseUrl();
+      setStatus('Mengirim perintah "' + actionName + '" ...');
+      try {
+        const res = await fetch(url + '/api/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: actionName })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        setStatus('Perintah "' + actionName + '" berhasil dikirim.');
+      } catch (err) {
+        setStatus('Gagal mengirim perintah: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
