@@ -1,5 +1,4 @@
-
-name: Build Android APK
+Name: Build Android APK
 
 on:
   workflow_dispatch:
@@ -50,9 +49,13 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: gradle assembleDebug
 
+      - name: Ganti nama file APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/JamMasjid-V2.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: JamMasjidDigital-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-
+          name: JamMasjidDigital-V2-apk
+          path: dist/JamMasjid-V2.apk
