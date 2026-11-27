@@ -2,6 +2,7 @@ package id.jammasjid.digital
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -26,6 +27,9 @@ class MainActivity : Activity() {
     companion object {
         private const val REQ_PICK_IMAGE = 1001
         private const val REQ_LOCATION = 1002
+        const val PREFS_NAME = "smart_masjid_prefs"
+        const val KEY_AUTO_START_ASKED = "auto_start_asked"
+        const val KEY_AUTO_START_ENABLED = "auto_start_enabled"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,7 +93,7 @@ class MainActivity : Activity() {
                         REQ_PICK_IMAGE
                     )
                     true
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     fileUploadCallback = null
                     false
                 }
@@ -105,6 +109,33 @@ class MainActivity : Activity() {
 
         setContentView(webView)
         webView.loadUrl("http://127.0.0.1:8081/")
+
+        // Tampilkan pilihan auto-start saat pertama kali aplikasi dibuka
+        showAutoStartDialogIfFirstRun()
+    }
+
+    private fun showAutoStartDialogIfFirstRun() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val alreadyAsked = prefs.getBoolean(KEY_AUTO_START_ASKED, false)
+        if (alreadyAsked) return
+
+        AlertDialog.Builder(this)
+            .setTitle("Auto-Start Saat TV Menyala")
+            .setMessage("Apakah aplikasi Smart Masjid ingin otomatis tampil saat TV Android dinyalakan?")
+            .setCancelable(false)
+            .setPositiveButton("Ya, Auto-Start") { _, _ ->
+                prefs.edit()
+                    .putBoolean(KEY_AUTO_START_ASKED, true)
+                    .putBoolean(KEY_AUTO_START_ENABLED, true)
+                    .apply()
+            }
+            .setNegativeButton("Tidak") { _, _ ->
+                prefs.edit()
+                    .putBoolean(KEY_AUTO_START_ASKED, true)
+                    .putBoolean(KEY_AUTO_START_ENABLED, false)
+                    .apply()
+            }
+            .show()
     }
 
     @Deprecated("Deprecated in Java")
@@ -186,10 +217,9 @@ class LocalServer(private val activity: Activity) : NanoHTTPD(8081) {
             }
         }
 
-        val path = if (session.uri == "/" || session.uri == "/admin") {
-            "index.html"
-        } else {
-            session.uri.trimStart('/')
+        val path = when (session.uri) {
+            "/", "/admin" -> "index.html"
+            else -> session.uri.trimStart('/')
         }
 
         return try {
@@ -358,6 +388,10 @@ class BootReceiver : BroadcastReceiver() {
             action == "android.intent.action.QUICKBOOT_POWERON" ||
             action == "com.htc.intent.action.QUICKBOOT_POWERON"
         ) {
+            val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+            val autoStartEnabled = prefs.getBoolean(MainActivity.KEY_AUTO_START_ENABLED, true)
+            if (!autoStartEnabled) return
+
             val launchIntent = Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
