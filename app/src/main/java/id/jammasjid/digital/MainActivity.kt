@@ -21,9 +21,11 @@ import org.json.JSONObject
 import java.io.File
 import java.net.Inet4Address
 import java.net.NetworkInterface
+import java.util.concurrent.atomic.AtomicLong
 
 class MainActivity : Activity() {
     private lateinit var server: LocalServer
+    lateinit var webView: WebView
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
     companion object {
@@ -37,12 +39,10 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Layar tetap menyala dan mode fullscreen tanpa bar/tombol native
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = 5894 or 1024 or 512
 
-        // Minta izin lokasi GPS (untuk koordinat jadwal salat otomatis)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(
@@ -55,7 +55,6 @@ class MainActivity : Activity() {
             }
         }
 
-        // Aktifkan flag auto-start secara bawaan pada pembukaan pertama jika belum pernah diatur
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (!prefs.contains(KEY_AUTO_START_ENABLED)) {
             prefs.edit()
@@ -64,12 +63,10 @@ class MainActivity : Activity() {
                 .apply()
         }
 
-        // Jalankan server lokal NanoHTTPD pada port 8081 (bisa diakses dari WebView & HP di Wi-Fi lokal)
         server = LocalServer(this)
         server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
 
-        // Konfigurasi WebView layar penuh
-        val webView = WebView(this)
+        webView = WebView(this)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -81,7 +78,6 @@ class MainActivity : Activity() {
 
         webView.webViewClient = WebViewClient()
 
-        // Tangani pemilihan foto dari galeri & izin GPS dari halaman web
         webView.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
                 webView: WebView?,
@@ -120,6 +116,18 @@ class MainActivity : Activity() {
 
         setContentView(webView)
         webView.loadUrl("http://127.0.0.1:8081/")
+    }
+
+    fun syncWebViewNow() {
+        runOnUiThread {
+            try {
+                if (!isFinishing && !isDestroyed) {
+                    webView.clearCache(false)
+                    webView.loadUrl("http://127.0.0.1:8081/?t=${System.currentTimeMillis()}")
+                }
+            } catch (_: Exception) {
+            }
+        }
     }
 
     fun getDeviceIpAddress(): String {
@@ -190,6 +198,7 @@ class MainActivity : Activity() {
 
 class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 8081) {
     private val configFile = File(activity.filesDir, "settings.json")
+    private val configVersion = AtomicLong(1L)
     private val defaults = JSONObject(
         """{"mosque":"Masjid Baitul Ghofar","location":"Surabaya","timezone":"Asia/Jakarta","text":"Selamat datang di masjid kami. Mohon luruskan dan rapatkan shaf.","times":{"Subuh":"04:20","Syuruq":"05:40","Dzuhur":"11:40","Ashar":"15:00","Maghrib":"17:35","Isya":"18:45"},"iqamah":{"Subuh":10,"Dzuhur":10,"Ashar":10,"Maghrib":5,"Isya":10},"offset":{"Subuh":0,"Dzuhur":0,"Ashar":0,"Maghrib":0,"Isya":0}}"""
     )
@@ -205,6 +214,7 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
             addHeader("Access-Control-Allow-Origin", "*")
             addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             addHeader("Access-Control-Allow-Headers", "Content-Type")
+            addHeader("Cache-Control", "no-store, no-cache, must-revalidate")
         }
     }
 
@@ -216,6 +226,10 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
         if (session.uri == "/api/ip") {
             val ip = activity.getDeviceIpAddress()
             return jsonResponse(Response.Status.OK, """{"ip":"$ip","port":8081,"remoteUrl":"http://$ip:8081/remote"}""")
+        }
+
+        if (session.uri == "/api/version") {
+            return jsonResponse(Response.Status.OK, """{"version":${configVersion.get()}}""")
         }
 
         val prefs = activity.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
@@ -239,9 +253,14 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
         if (session.method == Method.POST && session.uri == "/api/settings") {
             val body = HashMap<String, String>()
             session.parseBody(body)
-            val data = JSONObject(body["postData"] ?: "{}")
+            val rawBody = body["postData"]
+                ?: session.inputStream?.bufferedReader()?.use { it.readText() }
+                ?: "{}"
+            val data = JSONObject(rawBody)
             configFile.writeText(data.toString(2))
-            return jsonResponse(Response.Status.OK, """{"ok":true}""")
+            val nextVer = configVersion.incrementAndGet()
+            activity.syncWebViewNow()
+            return jsonResponse(Response.Status.OK, """{"ok":true,"version":$nextVer}""")
         }
 
         if (session.uri == "/api/settings") {
@@ -406,7 +425,7 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
     }
     async function loadAutoStart() {
       try {
-        const res = await fetch(baseUrl() + '/api/autostart');
+        const res = await fetch(baseUrl() + '/api/autostart', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           autoSelect.value = String(Boolean(data.enabled));
@@ -430,7 +449,7 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
       setStatus('Mengambil data...');
       try {
         await loadAutoStart();
-        const res = await fetch(baseUrl() + '/api/settings');
+        const res = await fetch(baseUrl() + '/api/settings', { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         fillForm(await res.json());
         setStatus('Data berhasil dimuat.');
@@ -445,7 +464,7 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
           body: JSON.stringify(buildPayload())
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        setStatus('Pengaturan tersimpan ke settings.json!');
+        setStatus('Pengaturan tersimpan ke settings.json dan disinkronkan ke TV!');
       } catch (e) { setStatus('Gagal menyimpan: ' + e.message); }
     }
     loadAutoStart();
