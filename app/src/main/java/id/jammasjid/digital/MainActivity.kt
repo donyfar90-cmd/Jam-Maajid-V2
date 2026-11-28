@@ -13,6 +13,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.GeolocationPermissions
@@ -21,6 +22,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import fi.iki.elonen.NanoHTTPD
@@ -32,6 +34,8 @@ import java.net.NetworkInterface
 class MainActivity : Activity() {
     private lateinit var server: LocalServer
     private lateinit var webView: WebView
+    private lateinit var topBar: LinearLayout
+    private lateinit var toggleBarBtn: Button
     private lateinit var statusBarText: TextView
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
@@ -65,55 +69,14 @@ class MainActivity : Activity() {
         server = LocalServer(this)
         server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
 
-        val rootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        val rootContainer = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#0F172A"))
         }
 
-        val topBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#1E293B"))
-            setPadding(24, 12, 24, 12)
-        }
-
-        statusBarText = TextView(this).apply {
-            setTextColor(Color.parseColor("#E2E8F0"))
-            textSize = 13f
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val autoStartBtn = Button(this).apply {
-            text = "Atur Auto-Start"
-            textSize = 12f
-            setBackgroundColor(Color.parseColor("#10B981"))
-            setTextColor(Color.parseColor("#052E16"))
-            setOnClickListener { showAutoStartDialog(forceShow = true) }
-        }
-
-        val reloadBtn = Button(this).apply {
-            text = "Muat Ulang"
-            textSize = 12f
-            setBackgroundColor(Color.parseColor("#334155"))
-            setTextColor(Color.WHITE)
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.marginStart = 12
-            layoutParams = lp
-            setOnClickListener { webView.reload() }
-        }
-
-        topBar.addView(statusBarText)
-        topBar.addView(autoStartBtn)
-        topBar.addView(reloadBtn)
-
         webView = WebView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
             )
             settings.apply {
                 javaScriptEnabled = true
@@ -161,15 +124,105 @@ class MainActivity : Activity() {
             }
         }
 
-        rootLayout.addView(topBar)
-        rootLayout.addView(webView)
-        setContentView(rootLayout)
+        topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.parseColor("#E61E293B"))
+            setPadding(36, 16, 36, 16)
+            visibility = View.GONE
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP
+            )
+        }
+
+        statusBarText = TextView(this).apply {
+            setTextColor(Color.parseColor("#E2E8F0"))
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val autoStartBtn = Button(this).apply {
+            text = "Atur Auto-Start"
+            textSize = 12f
+            setBackgroundColor(Color.parseColor("#10B981"))
+            setTextColor(Color.parseColor("#052E16"))
+            setOnClickListener { showAutoStartDialog(forceShow = true) }
+        }
+
+        val reloadBtn = Button(this).apply {
+            text = "Muat Ulang"
+            textSize = 12f
+            setBackgroundColor(Color.parseColor("#334155"))
+            setTextColor(Color.WHITE)
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.marginStart = 12
+            layoutParams = lp
+            setOnClickListener { webView.reload() }
+        }
+
+        val hideBarBtn = Button(this).apply {
+            text = "Sembunyikan"
+            textSize = 12f
+            setBackgroundColor(Color.parseColor("#475569"))
+            setTextColor(Color.WHITE)
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.marginStart = 12
+            layoutParams = lp
+            setOnClickListener {
+                topBar.visibility = View.GONE
+                toggleBarBtn.visibility = View.VISIBLE
+            }
+        }
+
+        topBar.addView(statusBarText)
+        topBar.addView(autoStartBtn)
+        topBar.addView(reloadBtn)
+        topBar.addView(hideBarBtn)
+
+        toggleBarBtn = Button(this).apply {
+            text = "Menu"
+            textSize = 11f
+            alpha = 0.65f
+            setBackgroundColor(Color.parseColor("#1E293B"))
+            setTextColor(Color.WHITE)
+            val lp = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.END
+            )
+            lp.topMargin = 20
+            lp.rightMargin = 36
+            layoutParams = lp
+            setOnClickListener {
+                updateStatusBar()
+                topBar.visibility = View.VISIBLE
+                toggleBarBtn.visibility = View.GONE
+            }
+        }
+
+        rootContainer.addView(webView)
+        rootContainer.addView(topBar)
+        rootContainer.addView(toggleBarBtn)
+        setContentView(rootContainer)
 
         updateStatusBar()
         webView.loadUrl("http://127.0.0.1:8081/")
 
         webView.postDelayed({
-            showAutoStartDialog(forceShow = false)
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            if (!prefs.getBoolean(KEY_AUTO_START_ASKED, false)) {
+                topBar.visibility = View.VISIBLE
+                toggleBarBtn.visibility = View.GONE
+                showAutoStartDialog(forceShow = false)
+            }
         }, 700)
     }
 
@@ -201,6 +254,8 @@ class MainActivity : Activity() {
                     .putBoolean(KEY_AUTO_START_ENABLED, true)
                     .apply()
                 updateStatusBar()
+                topBar.visibility = View.GONE
+                toggleBarBtn.visibility = View.VISIBLE
             }
             .setNegativeButton("Tidak") { _, _ ->
                 prefs.edit()
@@ -208,6 +263,8 @@ class MainActivity : Activity() {
                     .putBoolean(KEY_AUTO_START_ENABLED, false)
                     .apply()
                 updateStatusBar()
+                topBar.visibility = View.GONE
+                toggleBarBtn.visibility = View.VISIBLE
             }
             .show()
     }
@@ -313,12 +370,6 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
             session.parseBody(body)
             val data = JSONObject(body["postData"] ?: "{}")
             configFile.writeText(data.toString(2))
-            activity.runOnUiThread {
-                try {
-                    activity.findViewById<WebView>(android.R.id.content)
-                } catch (_: Exception) {
-                }
-            }
             return jsonResponse(Response.Status.OK, """{"ok":true}""")
         }
 
