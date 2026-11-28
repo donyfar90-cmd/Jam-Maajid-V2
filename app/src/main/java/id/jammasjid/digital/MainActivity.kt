@@ -7,21 +7,32 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.GeolocationPermissions
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONObject
 import java.io.File
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 class MainActivity : Activity() {
     private lateinit var server: LocalServer
+    private lateinit var webView: WebView
+    private lateinit var statusBarText: TextView
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
     companion object {
@@ -35,12 +46,10 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Layar tetap menyala dan mode fullscreen
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = 5894 or 1024 or 512
 
-        // Minta izin lokasi GPS (untuk koordinat jadwal salat otomatis)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(
@@ -53,89 +62,191 @@ class MainActivity : Activity() {
             }
         }
 
-        // Jalankan server lokal NanoHTTPD
         server = LocalServer(this)
         server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
 
-        // Konfigurasi WebView
-        val webView = WebView(this)
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            databaseEnabled = true
-            allowFileAccess = true
-            setGeolocationEnabled(true)
-            mediaPlaybackRequiresUserGesture = false
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#0F172A"))
         }
 
-        webView.webViewClient = WebViewClient()
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.parseColor("#1E293B"))
+            setPadding(24, 12, 24, 12)
+        }
 
-        // Tangani pemilihan foto dari galeri & izin GPS dari halaman web
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onShowFileChooser(
-                webView: WebView?,
-                filePathCallback: ValueCallback<Array<Uri>>?,
-                fileChooserParams: FileChooserParams?
-            ): Boolean {
-                fileUploadCallback?.onReceiveValue(null)
-                fileUploadCallback = filePathCallback
+        statusBarText = TextView(this).apply {
+            setTextColor(Color.parseColor("#E2E8F0"))
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
 
-                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "image/*"
-                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                }
+        val autoStartBtn = Button(this).apply {
+            text = "Atur Auto-Start"
+            textSize = 12f
+            setBackgroundColor(Color.parseColor("#10B981"))
+            setTextColor(Color.parseColor("#052E16"))
+            setOnClickListener { showAutoStartDialog(forceShow = true) }
+        }
 
-                return try {
-                    @Suppress("DEPRECATION")
-                    startActivityForResult(
-                        Intent.createChooser(intent, "Pilih Foto Latar"),
-                        REQ_PICK_IMAGE
-                    )
-                    true
-                } catch (_: Exception) {
-                    fileUploadCallback = null
-                    false
-                }
+        val reloadBtn = Button(this).apply {
+            text = "Muat Ulang"
+            textSize = 12f
+            setBackgroundColor(Color.parseColor("#334155"))
+            setTextColor(Color.WHITE)
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.marginStart = 12
+            layoutParams = lp
+            setOnClickListener { webView.reload() }
+        }
+
+        topBar.addView(statusBarText)
+        topBar.addView(autoStartBtn)
+        topBar.addView(reloadBtn)
+
+        webView = WebView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                databaseEnabled = true
+                allowFileAccess = true
+                setGeolocationEnabled(true)
+                mediaPlaybackRequiresUserGesture = false
             }
+            webViewClient = WebViewClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowFileChooser(
+                    webView: WebView?,
+                    filePathCallback: ValueCallback<Array<Uri>>?,
+                    fileChooserParams: FileChooserParams?
+                ): Boolean {
+                    fileUploadCallback?.onReceiveValue(null)
+                    fileUploadCallback = filePathCallback
 
-            override fun onGeolocationPermissionsShowPrompt(
-                origin: String?,
-                callback: GeolocationPermissions.Callback?
-            ) {
-                callback?.invoke(origin, true, false)
+                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "image/*"
+                        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    }
+
+                    return try {
+                        @Suppress("DEPRECATION")
+                        startActivityForResult(
+                            Intent.createChooser(intent, "Pilih Foto Latar"),
+                            REQ_PICK_IMAGE
+                        )
+                        true
+                    } catch (e: Exception) {
+                        fileUploadCallback = null
+                        false
+                    }
+                }
+
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?,
+                    callback: GeolocationPermissions.Callback?
+                ) {
+                    callback?.invoke(origin, true, false)
+                }
             }
         }
 
-        setContentView(webView)
+        rootLayout.addView(topBar)
+        rootLayout.addView(webView)
+        setContentView(rootLayout)
+
+        updateStatusBar()
         webView.loadUrl("http://127.0.0.1:8081/")
 
-        // Tampilkan pilihan auto-start saat pertama kali aplikasi dibuka
-        showAutoStartDialogIfFirstRun()
+        webView.postDelayed({
+            showAutoStartDialog(forceShow = false)
+        }, 700)
     }
 
-    private fun showAutoStartDialogIfFirstRun() {
+    private fun updateStatusBar() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean(KEY_AUTO_START_ENABLED, false)
+        val ip = getDeviceIpAddress()
+        val labelAuto = if (enabled) "AKTIF" else "NONAKTIF"
+        statusBarText.text = "Remote HP: http://$ip:8081/remote  |  Auto-Start: $labelAuto"
+    }
+
+    private fun showAutoStartDialog(forceShow: Boolean) {
+        if (isFinishing || isDestroyed) return
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val alreadyAsked = prefs.getBoolean(KEY_AUTO_START_ASKED, false)
-        if (alreadyAsked) return
+        if (!forceShow && alreadyAsked) return
 
+        val currentEnabled = prefs.getBoolean(KEY_AUTO_START_ENABLED, false)
         AlertDialog.Builder(this)
-            .setTitle("Auto-Start Saat TV Menyala")
-            .setMessage("Apakah aplikasi Smart Masjid ingin otomatis tampil saat TV Android dinyalakan?")
-            .setCancelable(false)
+            .setTitle("Pengaturan Auto-Start TV")
+            .setMessage(
+                "Apakah Smart Masjid ingin otomatis tampil saat TV Android menyala?\n\n" +
+                    "Status saat ini: ${if (currentEnabled) "Aktif" else "Tidak Aktif"}"
+            )
+            .setCancelable(true)
             .setPositiveButton("Ya, Auto-Start") { _, _ ->
                 prefs.edit()
                     .putBoolean(KEY_AUTO_START_ASKED, true)
                     .putBoolean(KEY_AUTO_START_ENABLED, true)
                     .apply()
+                updateStatusBar()
             }
             .setNegativeButton("Tidak") { _, _ ->
                 prefs.edit()
                     .putBoolean(KEY_AUTO_START_ASKED, true)
                     .putBoolean(KEY_AUTO_START_ENABLED, false)
                     .apply()
+                updateStatusBar()
             }
             .show()
+    }
+
+    fun getDeviceIpAddress(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val intf = interfaces.nextElement()
+                if (!intf.isUp || intf.isLoopback) continue
+                val addrs = intf.inetAddresses
+                while (addrs.hasMoreElements()) {
+                    val addr = addrs.nextElement()
+                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                        val ip = addr.hostAddress ?: ""
+                        if (!ip.startsWith("127.")) return ip
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return try {
+            @Suppress("DEPRECATION")
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val ipInt = wifiManager.connectionInfo.ipAddress
+            if (ipInt != 0) {
+                String.format(
+                    "%d.%d.%d.%d",
+                    ipInt and 0xff,
+                    ipInt shr 8 and 0xff,
+                    ipInt shr 16 and 0xff,
+                    ipInt shr 24 and 0xff
+                )
+            } else {
+                "127.0.0.1"
+            }
+        } catch (_: Exception) {
+            "127.0.0.1"
+        }
     }
 
     @Deprecated("Deprecated in Java")
@@ -167,7 +278,7 @@ class MainActivity : Activity() {
     }
 }
 
-class LocalServer(private val activity: Activity) : NanoHTTPD(8081) {
+class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 8081) {
     private val configFile = File(activity.filesDir, "settings.json")
     private val defaults = JSONObject(
         """{"mosque":"Masjid Baitul Ghofar","location":"Surabaya","timezone":"Asia/Jakarta","text":"Selamat datang di masjid kami. Mohon luruskan dan rapatkan shaf.","times":{"Subuh":"04:20","Syuruq":"05:40","Dzuhur":"11:40","Ashar":"15:00","Maghrib":"17:35","Isya":"18:45"},"iqamah":{"Subuh":10,"Dzuhur":10,"Ashar":10,"Maghrib":5,"Isya":10},"offset":{"Subuh":0,"Dzuhur":0,"Ashar":0,"Maghrib":0,"Isya":0}}"""
@@ -192,11 +303,22 @@ class LocalServer(private val activity: Activity) : NanoHTTPD(8081) {
             return jsonResponse(Response.Status.OK, "{}")
         }
 
+        if (session.uri == "/api/ip") {
+            val ip = activity.getDeviceIpAddress()
+            return jsonResponse(Response.Status.OK, """{"ip":"$ip","port":8081,"remoteUrl":"http://$ip:8081/remote"}""")
+        }
+
         if (session.method == Method.POST && session.uri == "/api/settings") {
             val body = HashMap<String, String>()
             session.parseBody(body)
             val data = JSONObject(body["postData"] ?: "{}")
             configFile.writeText(data.toString(2))
+            activity.runOnUiThread {
+                try {
+                    activity.findViewById<WebView>(android.R.id.content)
+                } catch (_: Exception) {
+                }
+            }
             return jsonResponse(Response.Status.OK, """{"ok":true}""")
         }
 
@@ -389,7 +511,7 @@ class BootReceiver : BroadcastReceiver() {
             action == "com.htc.intent.action.QUICKBOOT_POWERON"
         ) {
             val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
-            val autoStartEnabled = prefs.getBoolean(MainActivity.KEY_AUTO_START_ENABLED, true)
+            val autoStartEnabled = prefs.getBoolean(MainActivity.KEY_AUTO_START_ENABLED, false)
             if (!autoStartEnabled) return
 
             val launchIntent = Intent(context, MainActivity::class.java).apply {
