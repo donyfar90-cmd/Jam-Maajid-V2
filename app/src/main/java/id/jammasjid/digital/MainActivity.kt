@@ -2,29 +2,20 @@ package id.jammasjid.digital
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
-import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.GeolocationPermissions
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
-import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.TextView
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONObject
 import java.io.File
@@ -33,10 +24,6 @@ import java.net.NetworkInterface
 
 class MainActivity : Activity() {
     private lateinit var server: LocalServer
-    private lateinit var webView: WebView
-    private lateinit var topBar: LinearLayout
-    private lateinit var toggleBarBtn: Button
-    private lateinit var statusBarText: TextView
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
     companion object {
@@ -50,10 +37,12 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Layar tetap menyala dan mode fullscreen tanpa bar/tombol native
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = 5894 or 1024 or 512
 
+        // Minta izin lokasi GPS (untuk koordinat jadwal salat otomatis)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(
@@ -66,207 +55,71 @@ class MainActivity : Activity() {
             }
         }
 
+        // Aktifkan flag auto-start secara bawaan pada pembukaan pertama jika belum pernah diatur
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_AUTO_START_ENABLED)) {
+            prefs.edit()
+                .putBoolean(KEY_AUTO_START_ASKED, true)
+                .putBoolean(KEY_AUTO_START_ENABLED, true)
+                .apply()
+        }
+
+        // Jalankan server lokal NanoHTTPD pada port 8081 (bisa diakses dari WebView & HP di Wi-Fi lokal)
         server = LocalServer(this)
         server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
 
-        val rootContainer = FrameLayout(this).apply {
-            setBackgroundColor(Color.parseColor("#0F172A"))
+        // Konfigurasi WebView layar penuh
+        val webView = WebView(this)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            allowFileAccess = true
+            setGeolocationEnabled(true)
+            mediaPlaybackRequiresUserGesture = false
         }
 
-        webView = WebView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            settings.apply {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                databaseEnabled = true
-                allowFileAccess = true
-                setGeolocationEnabled(true)
-                mediaPlaybackRequiresUserGesture = false
-            }
-            webViewClient = WebViewClient()
-            webChromeClient = object : WebChromeClient() {
-                override fun onShowFileChooser(
-                    webView: WebView?,
-                    filePathCallback: ValueCallback<Array<Uri>>?,
-                    fileChooserParams: FileChooserParams?
-                ): Boolean {
-                    fileUploadCallback?.onReceiveValue(null)
-                    fileUploadCallback = filePathCallback
+        webView.webViewClient = WebViewClient()
 
-                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "image/*"
-                        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                    }
+        // Tangani pemilihan foto dari galeri & izin GPS dari halaman web
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                fileUploadCallback?.onReceiveValue(null)
+                fileUploadCallback = filePathCallback
 
-                    return try {
-                        @Suppress("DEPRECATION")
-                        startActivityForResult(
-                            Intent.createChooser(intent, "Pilih Foto Latar"),
-                            REQ_PICK_IMAGE
-                        )
-                        true
-                    } catch (e: Exception) {
-                        fileUploadCallback = null
-                        false
-                    }
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "image/*"
+                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                 }
 
-                override fun onGeolocationPermissionsShowPrompt(
-                    origin: String?,
-                    callback: GeolocationPermissions.Callback?
-                ) {
-                    callback?.invoke(origin, true, false)
+                return try {
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(
+                        Intent.createChooser(intent, "Pilih Foto Latar"),
+                        REQ_PICK_IMAGE
+                    )
+                    true
+                } catch (e: Exception) {
+                    fileUploadCallback = null
+                    false
                 }
             }
-        }
 
-        topBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#E61E293B"))
-            setPadding(36, 16, 36, 16)
-            visibility = View.GONE
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP
-            )
-        }
-
-        statusBarText = TextView(this).apply {
-            setTextColor(Color.parseColor("#E2E8F0"))
-            textSize = 13f
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val autoStartBtn = Button(this).apply {
-            text = "Atur Auto-Start"
-            textSize = 12f
-            setBackgroundColor(Color.parseColor("#10B981"))
-            setTextColor(Color.parseColor("#052E16"))
-            setOnClickListener { showAutoStartDialog(forceShow = true) }
-        }
-
-        val reloadBtn = Button(this).apply {
-            text = "Muat Ulang"
-            textSize = 12f
-            setBackgroundColor(Color.parseColor("#334155"))
-            setTextColor(Color.WHITE)
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.marginStart = 12
-            layoutParams = lp
-            setOnClickListener { webView.reload() }
-        }
-
-        val hideBarBtn = Button(this).apply {
-            text = "Sembunyikan"
-            textSize = 12f
-            setBackgroundColor(Color.parseColor("#475569"))
-            setTextColor(Color.WHITE)
-            val lp = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            lp.marginStart = 12
-            layoutParams = lp
-            setOnClickListener {
-                topBar.visibility = View.GONE
-                toggleBarBtn.visibility = View.VISIBLE
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String?,
+                callback: GeolocationPermissions.Callback?
+            ) {
+                callback?.invoke(origin, true, false)
             }
         }
 
-        topBar.addView(statusBarText)
-        topBar.addView(autoStartBtn)
-        topBar.addView(reloadBtn)
-        topBar.addView(hideBarBtn)
-
-        toggleBarBtn = Button(this).apply {
-            text = "Menu"
-            textSize = 11f
-            alpha = 0.65f
-            setBackgroundColor(Color.parseColor("#1E293B"))
-            setTextColor(Color.WHITE)
-            val lp = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP or Gravity.END
-            )
-            lp.topMargin = 20
-            lp.rightMargin = 36
-            layoutParams = lp
-            setOnClickListener {
-                updateStatusBar()
-                topBar.visibility = View.VISIBLE
-                toggleBarBtn.visibility = View.GONE
-            }
-        }
-
-        rootContainer.addView(webView)
-        rootContainer.addView(topBar)
-        rootContainer.addView(toggleBarBtn)
-        setContentView(rootContainer)
-
-        updateStatusBar()
+        setContentView(webView)
         webView.loadUrl("http://127.0.0.1:8081/")
-
-        webView.postDelayed({
-            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            if (!prefs.getBoolean(KEY_AUTO_START_ASKED, false)) {
-                topBar.visibility = View.VISIBLE
-                toggleBarBtn.visibility = View.GONE
-                showAutoStartDialog(forceShow = false)
-            }
-        }, 700)
-    }
-
-    private fun updateStatusBar() {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val enabled = prefs.getBoolean(KEY_AUTO_START_ENABLED, false)
-        val ip = getDeviceIpAddress()
-        val labelAuto = if (enabled) "AKTIF" else "NONAKTIF"
-        statusBarText.text = "Remote HP: http://$ip:8081/remote  |  Auto-Start: $labelAuto"
-    }
-
-    private fun showAutoStartDialog(forceShow: Boolean) {
-        if (isFinishing || isDestroyed) return
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val alreadyAsked = prefs.getBoolean(KEY_AUTO_START_ASKED, false)
-        if (!forceShow && alreadyAsked) return
-
-        val currentEnabled = prefs.getBoolean(KEY_AUTO_START_ENABLED, false)
-        AlertDialog.Builder(this)
-            .setTitle("Pengaturan Auto-Start TV")
-            .setMessage(
-                "Apakah Smart Masjid ingin otomatis tampil saat TV Android menyala?\n\n" +
-                    "Status saat ini: ${if (currentEnabled) "Aktif" else "Tidak Aktif"}"
-            )
-            .setCancelable(true)
-            .setPositiveButton("Ya, Auto-Start") { _, _ ->
-                prefs.edit()
-                    .putBoolean(KEY_AUTO_START_ASKED, true)
-                    .putBoolean(KEY_AUTO_START_ENABLED, true)
-                    .apply()
-                updateStatusBar()
-                topBar.visibility = View.GONE
-                toggleBarBtn.visibility = View.VISIBLE
-            }
-            .setNegativeButton("Tidak") { _, _ ->
-                prefs.edit()
-                    .putBoolean(KEY_AUTO_START_ASKED, true)
-                    .putBoolean(KEY_AUTO_START_ENABLED, false)
-                    .apply()
-                updateStatusBar()
-                topBar.visibility = View.GONE
-                toggleBarBtn.visibility = View.VISIBLE
-            }
-            .show()
     }
 
     fun getDeviceIpAddress(): String {
@@ -365,6 +218,24 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
             return jsonResponse(Response.Status.OK, """{"ip":"$ip","port":8081,"remoteUrl":"http://$ip:8081/remote"}""")
         }
 
+        val prefs = activity.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+        if (session.method == Method.GET && session.uri == "/api/autostart") {
+            val enabled = prefs.getBoolean(MainActivity.KEY_AUTO_START_ENABLED, true)
+            return jsonResponse(Response.Status.OK, """{"enabled":$enabled}""")
+        }
+
+        if (session.method == Method.POST && session.uri == "/api/autostart") {
+            val body = HashMap<String, String>()
+            session.parseBody(body)
+            val data = JSONObject(body["postData"] ?: "{}")
+            val enabled = data.optBoolean("enabled", true)
+            prefs.edit()
+                .putBoolean(MainActivity.KEY_AUTO_START_ASKED, true)
+                .putBoolean(MainActivity.KEY_AUTO_START_ENABLED, enabled)
+                .apply()
+            return jsonResponse(Response.Status.OK, """{"ok":true,"enabled":$enabled}""")
+        }
+
         if (session.method == Method.POST && session.uri == "/api/settings") {
             val body = HashMap<String, String>()
             session.parseBody(body)
@@ -431,7 +302,7 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
     .card h2 { font-size: 0.98rem; margin: 0 0 8px; }
     label { display: block; font-size: 0.8rem; color: #cbd5e1; margin: 8px 0 3px; }
-    input, textarea { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; }
+    input, textarea, select { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #f8fafc; }
     textarea { min-height: 68px; resize: vertical; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -446,9 +317,14 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
     <h1>Remote Pengaturan Jam Masjid</h1>
     <div class="sub">Terhubung ke server NanoHTTPD (port 8081) lewat Wi-Fi lokal</div>
     <div class="card">
-      <h2>1. Alamat Perangkat</h2>
+      <h2>1. Alamat Perangkat & Auto-Start</h2>
       <label for="baseUrl">URL Server Android</label>
       <input id="baseUrl" type="text" />
+      <label for="autoStartSelect">Auto-Start Saat TV Menyala</label>
+      <select id="autoStartSelect" onchange="saveAutoStart()">
+        <option value="true">Aktif</option>
+        <option value="false">Nonaktif</option>
+      </select>
       <div class="row"><button type="button" class="sec" onclick="loadSettings()">Ambil Data Saat Ini</button></div>
     </div>
     <div class="card">
@@ -495,6 +371,7 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
     const PRAYERS = ['Subuh', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
     const ALL_TIMES = ['Subuh', 'Syuruq', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya'];
     const urlInput = document.getElementById('baseUrl');
+    const autoSelect = document.getElementById('autoStartSelect');
     const statusEl = document.getElementById('status');
     urlInput.value = (location.protocol.startsWith('http') && location.host) ? location.origin : 'http://192.168.1.10:8081';
     const baseUrl = () => urlInput.value.trim().replace(/\/+$/, '');
@@ -527,9 +404,32 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
         times, iqamah, offset
       };
     }
+    async function loadAutoStart() {
+      try {
+        const res = await fetch(baseUrl() + '/api/autostart');
+        if (res.ok) {
+          const data = await res.json();
+          autoSelect.value = String(Boolean(data.enabled));
+        }
+      } catch (_) {}
+    }
+    async function saveAutoStart() {
+      setStatus('Menyimpan status Auto-Start...');
+      try {
+        const enabled = autoSelect.value === 'true';
+        const res = await fetch(baseUrl() + '/api/autostart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        setStatus('Auto-Start diatur ke: ' + (enabled ? 'Aktif' : 'Nonaktif'));
+      } catch (e) { setStatus('Gagal menyimpan Auto-Start: ' + e.message); }
+    }
     async function loadSettings() {
       setStatus('Mengambil data...');
       try {
+        await loadAutoStart();
         const res = await fetch(baseUrl() + '/api/settings');
         if (!res.ok) throw new Error('HTTP ' + res.status);
         fillForm(await res.json());
@@ -548,6 +448,7 @@ class LocalServer(private val activity: MainActivity) : NanoHTTPD("0.0.0.0", 808
         setStatus('Pengaturan tersimpan ke settings.json!');
       } catch (e) { setStatus('Gagal menyimpan: ' + e.message); }
     }
+    loadAutoStart();
   </script>
 </body>
 </html>
@@ -562,7 +463,7 @@ class BootReceiver : BroadcastReceiver() {
             action == "com.htc.intent.action.QUICKBOOT_POWERON"
         ) {
             val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
-            val autoStartEnabled = prefs.getBoolean(MainActivity.KEY_AUTO_START_ENABLED, false)
+            val autoStartEnabled = prefs.getBoolean(MainActivity.KEY_AUTO_START_ENABLED, true)
             if (!autoStartEnabled) return
 
             val launchIntent = Intent(context, MainActivity::class.java).apply {
